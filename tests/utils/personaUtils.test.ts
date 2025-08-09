@@ -309,7 +309,9 @@ describe('PersonaUtils', () => {
         { input: 'update the name to "Updated Name"', expected: 'Updated Name' },
         { input: 'set name "Set Name"', expected: 'Set Name' },
         { input: 'name to "Simple Name"', expected: 'Simple Name' },
-        { input: 'Change the name to "Career Pivot Guru" instead of "A Wise And"', expected: 'Career Pivot Guru' }
+        { input: 'Change the name to "Career Pivot Guru" instead of "A Wise And"', expected: 'Career Pivot Guru' },
+        { input: 'change the name from "Old Name" to "New Name"', expected: 'New Name' },
+        { input: 'update name from "Friendly Tutor" to "Friendly Teacher"', expected: 'Friendly Teacher' }
       ];
 
       testCases.forEach(({ input, expected }) => {
