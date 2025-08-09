@@ -191,14 +191,62 @@ export class PersonaUtils {
     return [...baseExpertise, ...additionalExpertise];
   }
 
-  // Regex patterns for persona modifications
-  private static readonly NAME_CHANGE_REGEX = 
-    // Matches: (optional)change/update/set + (optional)"the" + "name" + (optional)from "old" + (optional)"to" + "new name"
-    /(?:change|update|set)?\s*(?:the\s+)?name\s+(?:from\s+[""'"][^""'']*[""'']?\s+)?(?:to\s+)?[""'"]([^""'']*)[""'']?/i;
-  
-  private static readonly DESCRIPTION_CHANGE_REGEX = 
-    // Matches: (optional)change/update/set + (optional)"the" + "description" + (optional)from "old" + (optional)"to" + "new description"
-    /(?:change|update|set)?\s*(?:the\s+)?description\s+(?:from\s+[""'"][^""'']*[""'']?\s+)?(?:to\s+)?[""'"]([^""'']*)[""'']?/i;
+  // Simplified patterns for persona modifications - more readable and maintainable
+  private static readonly MODIFICATION_PATTERNS = {
+    // Name change patterns - multiple simple patterns instead of one complex regex
+    // Using proper quote matching: must start and end with same quote type
+    name: [
+      /change\s+(?:the\s+)?name\s+to\s+"([^"]+)"/i,  // Double quotes only
+      /change\s+(?:the\s+)?name\s+to\s+'([^']+)'/i,  // Single quotes only
+      /update\s+(?:the\s+)?name\s+to\s+"([^"]+)"/i,
+      /update\s+(?:the\s+)?name\s+to\s+'([^']+)'/i,
+      /set\s+(?:the\s+)?name\s+(?:to\s+)?"([^"]+)"/i, // "set name" or "set name to" with double quotes
+      /set\s+(?:the\s+)?name\s+(?:to\s+)?'([^']+)'/i, // "set name" or "set name to" with single quotes
+      /name\s+to\s+"([^"]+)"/i, // Simple "name to X" with double quotes
+      /name\s+to\s+'([^']+)'/i, // Simple "name to X" with single quotes
+      /change\s+(?:the\s+)?name\s+from\s+"[^"]*"\s+to\s+"([^"]+)"/i, // "change name from X to Y" double quotes
+      /change\s+(?:the\s+)?name\s+from\s+'[^']*'\s+to\s+'([^']+)'/i, // "change name from X to Y" single quotes
+      /update\s+(?:the\s+)?name\s+from\s+"[^"]*"\s+to\s+"([^"]+)"/i,
+      /update\s+(?:the\s+)?name\s+from\s+'[^']*'\s+to\s+'([^']+)'/i,
+    ],
+    // Description change patterns - with proper quote matching
+    description: [
+      /change\s+(?:the\s+)?description\s+to\s+"([^"]+)"/i,
+      /change\s+(?:the\s+)?description\s+to\s+'([^']+)'/i,
+      /update\s+(?:the\s+)?description\s+to\s+"([^"]+)"/i,
+      /update\s+(?:the\s+)?description\s+to\s+'([^']+)'/i,
+      /set\s+(?:the\s+)?description\s+(?:to\s+)?"([^"]+)"/i,
+      /set\s+(?:the\s+)?description\s+(?:to\s+)?'([^']+)'/i,
+      /description\s+to\s+"([^"]+)"/i,
+      /description\s+to\s+'([^']+)'/i,
+      /change\s+(?:the\s+)?description\s+from\s+"[^"]*"\s+to\s+"([^"]+)"/i,
+      /change\s+(?:the\s+)?description\s+from\s+'[^']*'\s+to\s+'([^']+)'/i,
+    ]
+  };
+
+  // Helper method to extract values using multiple simple patterns
+  private static extractModificationValue(modifications: string, field: 'name' | 'description'): string | null {
+    // Validate input to prevent null/undefined crashes
+    if (!modifications || typeof modifications !== 'string') {
+      return null;
+    }
+    
+    const patterns = PersonaUtils.MODIFICATION_PATTERNS[field];
+    
+    for (const pattern of patterns) {
+      const match = modifications.match(pattern);
+      if (match && match[1]) {
+        const value = match[1].trim();
+        // Reject empty or whitespace-only values
+        if (value.length === 0) {
+          return null;
+        }
+        return value;
+      }
+    }
+    
+    return null;
+  }
 
   private static addTechnologyExpertise(persona: Persona, modifications: string): Persona {
     interface TechConfig {
@@ -242,6 +290,17 @@ export class PersonaUtils {
   }
 
   static applyPersonaModifications(persona: Persona, modifications: string): Persona {
+    // Validate inputs to prevent crashes
+    if (!persona) {
+      throw new Error('Persona cannot be null or undefined');
+    }
+    
+    // Handle null/undefined modifications gracefully
+    if (!modifications || typeof modifications !== 'string') {
+      Logger.debug('[DEBUG] Invalid modifications input, returning unchanged persona');
+      return persona;
+    }
+    
     Logger.debug('[DEBUG] applyPersonaModifications called:', {
       originalName: persona.name,
       modifications: modifications
@@ -253,12 +312,9 @@ export class PersonaUtils {
       traits: [...persona.traits] // Also copy traits array for consistency
     };
 
-    // Handle name changes - supports patterns like:
-    // "change name to X", "update name to X", "change the name from Y to X"
-    const nameChangeMatch = modifications.match(PersonaUtils.NAME_CHANGE_REGEX);
-    Logger.debug('[DEBUG] Name change regex match:', nameChangeMatch);
-    if (nameChangeMatch) {
-      const newName = nameChangeMatch[1].trim();
+    // Handle name changes using simplified pattern matching
+    const newName = PersonaUtils.extractModificationValue(modifications, 'name');
+    if (newName) {
       Logger.debug(`[DEBUG] Applying name change: ${persona.name} -> ${newName}`);
       updatedPersona = {
         ...updatedPersona,
@@ -268,11 +324,10 @@ export class PersonaUtils {
       Logger.debug(`[DEBUG] No name change match found for: ${modifications}`);
     }
 
-    // Handle description changes - supports patterns like:
-    // "change description to X", "update description to X", "change the description from Y to X"  
-    const descriptionChangeMatch = modifications.match(PersonaUtils.DESCRIPTION_CHANGE_REGEX);
-    if (descriptionChangeMatch) {
-      const newDescription = descriptionChangeMatch[1].trim();
+    // Handle description changes using simplified pattern matching
+    const newDescription = PersonaUtils.extractModificationValue(modifications, 'description');
+    if (newDescription) {
+      Logger.debug(`[DEBUG] Applying description change: ${persona.description} -> ${newDescription}`);
       updatedPersona = {
         ...updatedPersona,
         description: newDescription

@@ -337,5 +337,140 @@ describe('PersonaUtils', () => {
       expect(modified.name).toBe('New Name');
       expect(modified.description).toBe('New description');
     });
+
+    // Edge case tests for robustness
+    it('should handle null modifications gracefully', () => {
+      const modified = PersonaUtils.applyPersonaModifications(basePersona, null as any);
+      expect(modified).toEqual(basePersona);
+      expect(modified.name).toBe(basePersona.name);
+    });
+
+    it('should handle undefined modifications gracefully', () => {
+      const modified = PersonaUtils.applyPersonaModifications(basePersona, undefined as any);
+      expect(modified).toEqual(basePersona);
+      expect(modified.name).toBe(basePersona.name);
+    });
+
+    it('should handle empty string modifications', () => {
+      const modified = PersonaUtils.applyPersonaModifications(basePersona, '');
+      expect(modified).toEqual(basePersona);
+    });
+
+    it('should reject mismatched quotes', () => {
+      const testCases = [
+        'change name to "Mixed\'',
+        'change name to \'Mixed"',
+        'change name to "Unclosed',
+        'set name to Unclosed"',
+      ];
+      
+      testCases.forEach(input => {
+        const modified = PersonaUtils.applyPersonaModifications(basePersona, input);
+        expect(modified.name).toBe(basePersona.name);
+      });
+    });
+
+    it('should handle empty quoted values', () => {
+      const modified = PersonaUtils.applyPersonaModifications(basePersona, 'change name to ""');
+      expect(modified.name).toBe(basePersona.name); // Should reject empty names
+    });
+
+    it('should handle whitespace-only names', () => {
+      const modified = PersonaUtils.applyPersonaModifications(basePersona, 'change name to "   "');
+      expect(modified.name).toBe(basePersona.name); // Should reject whitespace-only names
+    });
+
+    it('should handle excessive whitespace in modifications', () => {
+      const testCases = [
+        { input: 'change   name   to   "Spaced"', expected: 'Spaced' },
+        { input: '  change name to "Leading"  ', expected: 'Leading' },
+        { input: 'change\tname\tto\t"Tabs"', expected: 'Tabs' },
+      ];
+
+      testCases.forEach(({ input, expected }) => {
+        const modified = PersonaUtils.applyPersonaModifications(basePersona, input);
+        expect(modified.name).toBe(expected);
+      });
+    });
+
+    it('should handle case variations consistently', () => {
+      const testCases = [
+        { input: 'CHANGE NAME TO "Upper"', expected: 'Upper' },
+        { input: 'Change Name To "Mixed"', expected: 'Mixed' },
+        { input: 'change NAME to "Lower"', expected: 'Lower' },
+      ];
+
+      testCases.forEach(({ input, expected }) => {
+        const modified = PersonaUtils.applyPersonaModifications(basePersona, input);
+        expect(modified.name).toBe(expected);
+      });
+    });
+
+    it('should handle unicode and special characters', () => {
+      const testCases = [
+        { input: 'change name to "José María-González"', expected: 'José María-González' },
+        { input: 'change name to "Test@#$%&*()"', expected: 'Test@#$%&*()' },
+        { input: 'change name to "日本語"', expected: '日本語' },
+        { input: 'change name to "🎉 Party Time"', expected: '🎉 Party Time' },
+      ];
+
+      testCases.forEach(({ input, expected }) => {
+        const modified = PersonaUtils.applyPersonaModifications(basePersona, input);
+        expect(modified.name).toBe(expected);
+      });
+    });
+
+    it('should handle very long names', () => {
+      const longName = 'A'.repeat(200);
+      const modified = PersonaUtils.applyPersonaModifications(basePersona, `change name to "${longName}"`);
+      expect(modified.name).toBe(longName);
+      expect(modified.name.length).toBe(200);
+    });
+
+    it('should handle complex multi-modification strings correctly', () => {
+      const modified = PersonaUtils.applyPersonaModifications(
+        basePersona,
+        'change name to "Complex" and update description to "Multi" and add React expertise and make it more formal'
+      );
+
+      expect(modified.name).toBe('Complex');
+      expect(modified.description).toBe('Multi');
+      expect(modified.expertise).toContain('React');
+      expect(modified.communicationStyle).toBe('formal and professional');
+    });
+
+    it('should reject null persona input', () => {
+      expect(() => {
+        PersonaUtils.applyPersonaModifications(null as any, 'change name to "Test"');
+      }).toThrow('Persona cannot be null or undefined');
+    });
+
+    it('should handle single quotes consistently', () => {
+      const testCases = [
+        { input: "change name to 'Single Quotes'", expected: 'Single Quotes' },
+        { input: "update name to 'Updated Single'", expected: 'Updated Single' },
+        { input: "set name 'Set Single'", expected: 'Set Single' },
+      ];
+
+      testCases.forEach(({ input, expected }) => {
+        const modified = PersonaUtils.applyPersonaModifications(basePersona, input);
+        expect(modified.name).toBe(expected);
+      });
+    });
+
+    it('should test all description patterns thoroughly', () => {
+      const descPatterns = [
+        { input: 'change description to "Changed Desc"', expected: 'Changed Desc' },
+        { input: 'update the description to "Updated Desc"', expected: 'Updated Desc' },
+        { input: 'set description "Set Desc"', expected: 'Set Desc' },
+        { input: 'description to "Simple Desc"', expected: 'Simple Desc' },
+        { input: 'change description from "old" to "New Desc"', expected: 'New Desc' },
+      ];
+
+      descPatterns.forEach(({ input, expected }) => {
+        const modified = PersonaUtils.applyPersonaModifications(basePersona, input);
+        expect(modified.description).toBe(expected);
+      });
+    });
   });
 });
