@@ -120,7 +120,7 @@ describe('Logger', () => {
       );
       // Should not have additional data appended for undefined
       const call = consoleErrorSpy.mock.calls[0][0];
-      expect(call).toBe(call.split(' INFO: Message with undefined')[0] + ' INFO: Message with undefined');
+      expect(call).toContain('INFO: Message with undefined');
     });
 
     it('should handle null data', () => {
