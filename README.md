@@ -223,12 +223,24 @@ npm run server:list
 - **Efficiency Optimizer** - Performance and productivity specialist
 - **Security Guardian** - Cybersecurity expert focused on secure coding
 
+## 🚀 CI/CD Pipeline
+
+This project uses GitHub Actions for continuous integration and deployment. See [CICD.md](./CICD.md) for detailed documentation.
+
+### Quick Overview:
+- **CI**: Automated testing on Node.js 18.x and 20.x
+- **PR Validation**: Automatic validation and feedback on pull requests  
+- **Release**: Automated npm publishing and GitHub releases
+- **Coverage**: Built-in code coverage reporting (currently 88.75%)
+
 ## 🤝 Contributing
 
 - Follow the established architecture patterns
 - Use the shared utilities (Logger, SchemaBuilder, ErrorHandler)
 - Add proper TypeScript types
 - Register your server in the ServerRegistry (register-only file)
+- Ensure all tests pass (`npm test`)
+- Follow conventional commit format
 - Update documentation
 
 ## 📄 License
