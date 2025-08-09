@@ -74,137 +74,131 @@ export class PersonaServer extends McpServerBase {
     PersonaUtils.savePersonaStorage(this.storage);
   }
 
+  // Helper method to eliminate repeated McpErrorHandler.handleAsync pattern
+  private async withErrorHandler<T>(
+    handler: () => Promise<T>, 
+    operationName: string
+  ): Promise<T> {
+    return McpErrorHandler.handleAsync(handler, operationName);
+  }
+
+  // Helper method to validate persona existence
+  private validatePersonaExists(personaId: string): Persona {
+    const persona = this.personas.get(personaId);
+    if (!persona) {
+      throw McpErrorHandler.notFound('Persona', personaId);
+    }
+    return persona;
+  }
+
+  // Helper method for tool registration
+  private registerPersonaTool(
+    name: string,
+    handler: Function,
+    description: string,
+    properties: Record<string, any> = {},
+    required: string[] = []
+  ): void {
+    this.registerTool(
+      name,
+      handler.bind(this),
+      SchemaBuilder.createTool(name, description, properties, required)
+    );
+  }
+
+  // Helper method for formatting persona details consistently
+  private formatPersonaDetails(persona: Persona, includeId: boolean = false): string {
+    const details = [
+      ...(includeId ? [`ID: ${persona.id}`] : []),
+      `Name: ${persona.name}`,
+      `Description: ${persona.description}`,
+      `Communication Style: ${persona.communicationStyle}`,
+      `Traits: ${persona.traits.join(', ')}`,
+      `Expertise: ${persona.expertise.join(', ')}`,
+    ];
+    
+    return details.join('\n');
+  }
+
+  // Helper method for formatting success responses with persona details
+  private formatPersonaSuccessResponse(
+    action: string,
+    persona: Persona,
+    extraInfo?: string,
+    includeSystemPrompt: boolean = true
+  ): string {
+    let response = `${action} persona "${persona.name}" successfully!\n\n`;
+    
+    if (extraInfo) {
+      response += `${extraInfo}\n\n`;
+    }
+    
+    response += this.formatPersonaDetails(persona, true);
+    
+    if (includeSystemPrompt) {
+      response += `\n\nSystem Prompt:\n${persona.systemPrompt}`;
+    }
+    
+    return response;
+  }
+
   protected setupTools(): void {
-    // List personas
-    this.registerTool(
-      'list_personas',
-      this.handleListPersonas.bind(this),
-      SchemaBuilder.createTool('list_personas', 'List all available AI personas')
-    );
+    // Simple tools with no parameters
+    this.registerPersonaTool('list_personas', this.handleListPersonas, 'List all available AI personas');
+    this.registerPersonaTool('get_active_persona', this.handleGetActivePersona, 'Get the currently active persona');
+    this.registerPersonaTool('get_persona_prompt', this.handleGetPersonaPrompt, 'Get the system prompt for the active persona');
 
-    // Get active persona
-    this.registerTool(
-      'get_active_persona',
-      this.handleGetActivePersona.bind(this),
-      SchemaBuilder.createTool('get_active_persona', 'Get the currently active persona')
-    );
-
-    // Switch persona
-    this.registerTool(
-      'switch_persona',
-      this.handleSwitchPersona.bind(this),
-      SchemaBuilder.createTool(
-        'switch_persona',
-        'Switch to a different AI persona',
-        {
-          persona_id: SchemaBuilder.stringProperty('The ID of the persona to switch to'),
-        },
-        ['persona_id']
-      )
-    );
-
-    // Get persona details
-    this.registerTool(
-      'get_persona_details',
-      this.handleGetPersonaDetails.bind(this),
-      SchemaBuilder.createTool(
-        'get_persona_details',
-        'Get detailed information about a specific persona',
-        {
-          persona_id: SchemaBuilder.stringProperty('The ID of the persona to get details for'),
-        },
-        ['persona_id']
-      )
-    );
+    // Tools requiring persona_id
+    const personaIdProperty = { persona_id: SchemaBuilder.stringProperty('The ID of the persona') };
+    this.registerPersonaTool('switch_persona', this.handleSwitchPersona, 'Switch to a different AI persona', personaIdProperty, ['persona_id']);
+    this.registerPersonaTool('get_persona_details', this.handleGetPersonaDetails, 'Get detailed information about a specific persona', personaIdProperty, ['persona_id']);
+    this.registerPersonaTool('delete_persona', this.handleDeletePersona, 'Delete a persona', personaIdProperty, ['persona_id']);
+    this.registerPersonaTool('set_default_persona', this.handleSetDefaultPersona, 'Set which persona should be active by default when the server starts', personaIdProperty, ['persona_id']);
 
     // Create custom persona
-    this.registerTool(
+    this.registerPersonaTool(
       'create_custom_persona',
-      this.handleCreateCustomPersona.bind(this),
-      SchemaBuilder.createTool(
-        'create_custom_persona',
-        'Create a new custom persona',
-        {
-          id: SchemaBuilder.stringProperty('Unique identifier for the persona'),
-          name: SchemaBuilder.stringProperty('Display name for the persona'),
-          description: SchemaBuilder.stringProperty('Brief description of the persona'),
-          system_prompt: SchemaBuilder.stringProperty('System prompt that defines the persona behavior'),
-          traits: SchemaBuilder.arrayProperty('List of personality traits'),
-          communication_style: SchemaBuilder.stringProperty('Description of how the persona communicates'),
-          expertise: SchemaBuilder.arrayProperty('Areas of expertise for the persona'),
-        },
-        ['id', 'name', 'description', 'system_prompt']
-      )
-    );
-
-    // Delete persona
-    this.registerTool(
-      'delete_persona',
-      this.handleDeletePersona.bind(this),
-      SchemaBuilder.createTool(
-        'delete_persona',
-        'Delete a persona',
-        {
-          persona_id: SchemaBuilder.stringProperty('The ID of the persona to delete'),
-        },
-        ['persona_id']
-      )
-    );
-
-    // Get persona prompt
-    this.registerTool(
-      'get_persona_prompt',
-      this.handleGetPersonaPrompt.bind(this),
-      SchemaBuilder.createTool('get_persona_prompt', 'Get the system prompt for the active persona')
+      this.handleCreateCustomPersona,
+      'Create a new custom persona',
+      {
+        id: SchemaBuilder.stringProperty('Unique identifier for the persona'),
+        name: SchemaBuilder.stringProperty('Display name for the persona'),
+        description: SchemaBuilder.stringProperty('Brief description of the persona'),
+        system_prompt: SchemaBuilder.stringProperty('System prompt that defines the persona behavior'),
+        traits: SchemaBuilder.arrayProperty('List of personality traits'),
+        communication_style: SchemaBuilder.stringProperty('Description of how the persona communicates'),
+        expertise: SchemaBuilder.arrayProperty('Areas of expertise for the persona'),
+      },
+      ['id', 'name', 'description', 'system_prompt']
     );
 
     // Generate persona
-    this.registerTool(
+    this.registerPersonaTool(
       'generate_persona',
-      this.handleGeneratePersona.bind(this),
-      SchemaBuilder.createTool(
-        'generate_persona',
-        'Generate a new persona using LLM based on a description',
-        {
-          description: SchemaBuilder.stringProperty('Description of the persona you want to create (e.g., "a pirate who loves coding", "a zen master developer", "a startup founder mindset")'),
-          id: SchemaBuilder.stringProperty('Optional custom ID for the persona (auto-generated if not provided)'),
-        },
-        ['description']
-      )
+      this.handleGeneratePersona,
+      'Generate a new persona using LLM based on a description',
+      {
+        description: SchemaBuilder.stringProperty('Description of the persona you want to create (e.g., "a pirate who loves coding", "a zen master developer", "a startup founder mindset")'),
+        id: SchemaBuilder.stringProperty('Optional custom ID for the persona (auto-generated if not provided)'),
+      },
+      ['description']
     );
 
     // Update persona
-    this.registerTool(
+    this.registerPersonaTool(
       'update_persona',
-      this.handleUpdatePersona.bind(this),
-      SchemaBuilder.createTool(
-        'update_persona',
-        'Update an existing persona using LLM based on modification instructions',
-        {
-          persona_id: SchemaBuilder.stringProperty('The ID of the persona to update'),
-          modifications: SchemaBuilder.stringProperty('Description of how to modify the persona (e.g., "make it more formal", "add expertise in React", "change communication style to be more concise")'),
-        },
-        ['persona_id', 'modifications']
-      )
-    );
-
-    // Set default persona
-    this.registerTool(
-      'set_default_persona',
-      this.handleSetDefaultPersona.bind(this),
-      SchemaBuilder.createTool(
-        'set_default_persona',
-        'Set which persona should be active by default when the server starts',
-        {
-          persona_id: SchemaBuilder.stringProperty('The ID of the persona to set as default'),
-        },
-        ['persona_id']
-      )
+      this.handleUpdatePersona,
+      'Update an existing persona using LLM based on modification instructions',
+      {
+        persona_id: SchemaBuilder.stringProperty('The ID of the persona to update'),
+        modifications: SchemaBuilder.stringProperty('Description of how to modify the persona (e.g., "make it more formal", "add expertise in React", "change communication style to be more concise")'),
+      },
+      ['persona_id', 'modifications']
     );
   }
 
   private async handleListPersonas() {
-    return McpErrorHandler.handleAsync(async () => {
+    return this.withErrorHandler(async () => {
       // Ensure we have an active persona set to the default
       if (!this.storage.activePersonaId) {
         this.storage.activePersonaId = this.storage.defaultPersonaId;
@@ -225,7 +219,7 @@ export class PersonaServer extends McpServerBase {
   }
 
   private async handleGetActivePersona() {
-    return McpErrorHandler.handleAsync(async () => {
+    return this.withErrorHandler(async () => {
       if (!this.storage.activePersonaId) {
         return this.createResponse(ErrorMessages.NO_ACTIVE_PERSONA);
       }
@@ -246,16 +240,12 @@ export class PersonaServer extends McpServerBase {
   }
 
   private async handleSwitchPersona(args: PersonaSwitchArgs) {
-    return McpErrorHandler.handleAsync(async () => {
+    return this.withErrorHandler(async () => {
       const { persona_id } = args;
-
-      if (!this.personas.has(persona_id)) {
-        throw McpErrorHandler.notFound('Persona', persona_id);
-      }
+      const newPersona = this.validatePersonaExists(persona_id);
 
       const previousPersona = this.storage.activePersonaId ? this.personas.get(this.storage.activePersonaId) : null;
       this.storage.activePersonaId = persona_id;
-      const newPersona = this.personas.get(persona_id)!;
       
       // Save the active persona change
       this.savePersonas();
@@ -271,20 +261,15 @@ export class PersonaServer extends McpServerBase {
   }
 
   private async handleGetPersonaDetails(args: PersonaDetailsArgs) {
-    return McpErrorHandler.handleAsync(async () => {
+    return this.withErrorHandler(async () => {
       const { persona_id } = args;
-
-      const persona = this.personas.get(persona_id);
-      if (!persona) {
-        throw McpErrorHandler.notFound('Persona', persona_id);
-      }
-
+      const persona = this.validatePersonaExists(persona_id);
       return this.createJsonResponse(persona);
     }, 'get persona details');
   }
 
   private async handleCreateCustomPersona(args: CreatePersonaArgs) {
-    return McpErrorHandler.handleAsync(async () => {
+    return this.withErrorHandler(async () => {
       const { id, name, description, system_prompt, traits = [], communication_style = '', expertise = [] } = args;
 
       if (this.personas.has(id)) {
@@ -310,14 +295,9 @@ export class PersonaServer extends McpServerBase {
   }
 
   private async handleDeletePersona(args: DeletePersonaArgs) {
-    return McpErrorHandler.handleAsync(async () => {
+    return this.withErrorHandler(async () => {
       const { persona_id } = args;
-
-      if (!this.personas.has(persona_id)) {
-        throw McpErrorHandler.notFound('Persona', persona_id);
-      }
-
-      const persona = this.personas.get(persona_id)!;
+      const persona = this.validatePersonaExists(persona_id);
       this.personas.delete(persona_id);
 
       // If deleting default, choose a new default
@@ -348,7 +328,7 @@ export class PersonaServer extends McpServerBase {
   }
 
   private async handleGetPersonaPrompt() {
-    return McpErrorHandler.handleAsync(async () => {
+    return this.withErrorHandler(async () => {
       // Ensure we have an active persona
       if (!this.storage.activePersonaId) {
         this.storage.activePersonaId = this.storage.defaultPersonaId;
@@ -368,7 +348,7 @@ export class PersonaServer extends McpServerBase {
   }
 
   private async handleGeneratePersona(args: GeneratePersonaArgs) {
-    return McpErrorHandler.handleAsync(async () => {
+    return this.withErrorHandler(async () => {
       const { description, id } = args;
       
       const personaId = id || PersonaUtils.generatePersonaId(description);
@@ -389,26 +369,15 @@ export class PersonaServer extends McpServerBase {
       Logger.info(`Generated persona: "${newPersona.name}" (${personaId}) from description: "${description}"`);
 
       return this.createResponse(
-        `Generated persona "${newPersona.name}" successfully!\n\n` +
-        `ID: ${personaId}\n` +
-        `Name: ${newPersona.name}\n` +
-        `Description: ${newPersona.description}\n` +
-        `Communication Style: ${newPersona.communicationStyle}\n` +
-        `Traits: ${newPersona.traits.join(', ')}\n` +
-        `Expertise: ${newPersona.expertise.join(', ')}\n\n` +
-        `System Prompt:\n${newPersona.systemPrompt}`
+        this.formatPersonaSuccessResponse('Generated', newPersona)
       );
     }, 'generate persona');
   }
 
   private async handleUpdatePersona(args: UpdatePersonaArgs) {
-    return McpErrorHandler.handleAsync(async () => {
+    return this.withErrorHandler(async () => {
       const { persona_id, modifications } = args;
-
-      const existingPersona = this.personas.get(persona_id);
-      if (!existingPersona) {
-        throw McpErrorHandler.notFound('Persona', persona_id);
-      }
+      const existingPersona = this.validatePersonaExists(persona_id);
 
       // Apply modifications and mutate the existing persona in place so references remain consistent
       const updatedPersona = PersonaUtils.applyPersonaModifications(existingPersona, modifications);
@@ -418,26 +387,19 @@ export class PersonaServer extends McpServerBase {
       Logger.info(`Updated persona: "${existingPersona.name}" (${persona_id}) with modifications: "${modifications}"`);
 
       return this.createResponse(
-        `Updated persona "${existingPersona.name}" successfully!\n\n` +
-        `Modifications applied: ${modifications}\n\n` +
-        `Updated persona details:\n` +
-        `Name: ${existingPersona.name}\n` +
-        `Description: ${existingPersona.description}\n` +
-        `Communication Style: ${existingPersona.communicationStyle}\n` +
-        `Traits: ${existingPersona.traits.join(', ')}\n` +
-        `Expertise: ${existingPersona.expertise.join(', ')}\n\n` +
-        `Updated System Prompt:\n${existingPersona.systemPrompt}`
+        this.formatPersonaSuccessResponse(
+          'Updated', 
+          existingPersona, 
+          `Modifications applied: ${modifications}\n\nUpdated persona details:`
+        )
       );
     }, 'update persona');
   }
 
   private async handleSetDefaultPersona(args: SetDefaultPersonaArgs) {
-    return McpErrorHandler.handleAsync(async () => {
+    return this.withErrorHandler(async () => {
       const { persona_id } = args;
-
-      if (!this.personas.has(persona_id)) {
-        throw McpErrorHandler.notFound('Persona', persona_id);
-      }
+      this.validatePersonaExists(persona_id);
 
       const previousDefault = this.storage.defaultPersonaId;
       this.storage.defaultPersonaId = persona_id;

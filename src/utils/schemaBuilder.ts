@@ -18,36 +18,64 @@ export class SchemaBuilder {
     };
   }
 
+  // Generic property builder to eliminate repetition
+  private static createProperty<T>(config: {
+    type: string;
+    description: string;
+    defaultValue?: T;
+    items?: { type: string };
+    additionalProperties?: boolean;
+  }): any {
+    const property: any = {
+      type: config.type,
+      description: config.description,
+    };
+    
+    if (config.defaultValue !== undefined) {
+      // For strings, check if truthy to match original behavior
+      if (config.type === 'string' && !config.defaultValue) {
+        // Don't set default for empty strings (matching original stringProperty behavior)
+      } else {
+        property.default = config.defaultValue;
+      }
+    }
+    
+    if (config.items) property.items = config.items;
+    if (config.additionalProperties !== undefined) property.additionalProperties = config.additionalProperties;
+    
+    return property;
+  }
+
   static stringProperty(description: string, defaultValue?: string): any {
-    return {
+    return SchemaBuilder.createProperty({
       type: 'string',
       description,
-      ...(defaultValue && { default: defaultValue }),
-    };
+      defaultValue,
+    });
   }
 
   static numberProperty(description: string, defaultValue?: number): any {
-    return {
+    return SchemaBuilder.createProperty({
       type: 'number',
       description,
-      ...(defaultValue !== undefined && { default: defaultValue }),
-    };
+      defaultValue,
+    });
   }
 
   static arrayProperty(description: string, itemType: string = 'string'): any {
-    return {
+    return SchemaBuilder.createProperty({
       type: 'array',
-      items: { type: itemType },
       description,
-    };
+      items: { type: itemType },
+    });
   }
 
   static objectProperty(description: string, additionalProperties: boolean = true): any {
-    return {
+    return SchemaBuilder.createProperty({
       type: 'object',
       description,
       additionalProperties,
-    };
+    });
   }
 
   static emptyObjectSchema(): Record<string, any> {
