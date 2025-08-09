@@ -225,13 +225,23 @@ npm run server:list
 
 ## 🚀 CI/CD Pipeline
 
-This project uses GitHub Actions for continuous integration and deployment. See [CICD.md](./CICD.md) for detailed documentation.
+This project uses comprehensive GitHub Actions workflows for continuous integration, automated code review, and deployment. See [CICD.md](./CICD.md) for detailed documentation.
 
-### Quick Overview:
-- **CI**: Automated testing on Node.js 18.x and 20.x
-- **PR Validation**: Automatic validation and feedback on pull requests  
-- **Release**: Automated npm publishing and GitHub releases
-- **Coverage**: Built-in code coverage reporting (currently 88.75%)
+### Workflows:
+| Workflow | Trigger | Purpose |
+|----------|---------|---------|
+| **CI** | Push to main/feature branches | Tests on Node.js 18.x & 20.x, builds, coverage |
+| **PR Validation** | Pull requests | Validates, tests, and comments with results |
+| **Code Review** | PR with code changes | ESLint, security scan, complexity analysis |
+| **Release** | Version tags or manual | NPM publishing and GitHub releases |
+
+### Features:
+- ✅ **Automated Testing**: Multi-version Node.js testing with 88.75% coverage
+- 🤖 **AI Code Review**: GitHub Copilot integration for intelligent PR feedback
+- 🔒 **Security Scanning**: Automated detection of vulnerabilities and secrets
+- 📊 **Code Quality**: ESLint analysis and complexity metrics
+- 📦 **Automated Publishing**: NPM and GitHub Packages release automation
+- 💬 **PR Comments**: Automated feedback with coverage and validation results
 
 ## 🤝 Contributing
 

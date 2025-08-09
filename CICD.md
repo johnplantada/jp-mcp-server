@@ -2,17 +2,27 @@
 
 ## Overview
 
-This project uses GitHub Actions for continuous integration and deployment. The pipeline ensures code quality, automates testing, and streamlines the release process.
+This project uses a comprehensive GitHub Actions pipeline for continuous integration, automated code review, and deployment. The pipeline ensures code quality, provides intelligent feedback, and streamlines the release process.
+
+## Workflow Summary
+
+| Workflow | File | Trigger | Purpose |
+|----------|------|---------|---------|
+| **Continuous Integration** | `ci.yml` | Push to main/feature-* | Multi-version testing, build verification |
+| **PR Validation** | `pr-validation.yml` | Pull request events | Comprehensive validation with feedback |
+| **Code Review** | `code-review.yml` | PR with code changes | Automated quality and security analysis |
+| **Release** | `release.yml` | Version tags (v*) | Automated publishing to NPM and GitHub |
 
 ## Pipeline Architecture
 
 ```mermaid
 graph TB
     subgraph "Development Flow"
-        A[Developer Push] --> B{Branch Type?}
-        B -->|feature/main| C[CI Workflow]
-        B -->|PR| D[PR Validation]
-        B -->|tag v*| E[Release Workflow]
+        A[Developer Push] --> B{Event Type?}
+        B -->|Push| C[CI Workflow]
+        B -->|Pull Request| D[PR Validation]
+        B -->|Pull Request| E[Code Review]
+        B -->|Tag v*| F[Release Workflow]
     end
     
     subgraph "CI Workflow"
@@ -24,21 +34,34 @@ graph TB
         C4 --> C5[TypeScript Check]
     end
     
-    subgraph "PR Validation"
+    subgraph "PR Workflows"
         D --> D1[Run Tests]
         D1 --> D2[Coverage Analysis]
         D2 --> D3[Build Verification]
         D3 --> D4[Package Validation]
         D4 --> D5[Post PR Comment]
+        
+        E --> E1[ESLint Analysis]
+        E --> E2[Security Scan]
+        E --> E3[Complexity Check]
+        E1 --> E4[Generate Review]
+        E2 --> E4
+        E3 --> E4
+        E4 --> E5[Post Review Comment]
     end
     
     subgraph "Release Workflow"
-        E --> E1[Run Tests]
-        E1 --> E2[Build]
-        E2 --> E3[Version Update]
-        E3 --> E4[GitHub Release]
-        E4 --> E5[NPM Publish]
-        E5 --> E6[GitHub Packages]
+        F --> F1[Run Tests]
+        F1 --> F2[Build]
+        F2 --> F3[Version Update]
+        F3 --> F4[GitHub Release]
+        F4 --> F5[NPM Publish]
+        F5 --> F6[GitHub Packages]
+    end
+    
+    subgraph "Optional: Copilot"
+        G[GitHub Copilot] -.->|If Enabled| D
+        G -.->|AI Review| E
     end
 ```
 
@@ -235,6 +258,35 @@ graph TB
     C --> H[PR Validation]
 ```
 
+## Quick Start Guide
+
+### Workflow Files
+
+All workflows are located in `.github/workflows/`:
+
+```
+.github/workflows/
+├── ci.yml              # Continuous Integration
+├── pr-validation.yml   # PR Validation & Feedback
+├── code-review.yml     # Automated Code Review
+└── release.yml         # Release & Publishing
+```
+
+### Required Configuration
+
+1. **NPM Publishing** (for releases):
+   - Create NPM token: `npm token create`
+   - Add to GitHub Secrets: Settings → Secrets → Actions → `NPM_TOKEN`
+
+2. **GitHub Copilot** (optional):
+   - Enable in Settings → GitHub Copilot → Policies
+   - Turn on "Copilot for Pull Requests"
+
+3. **Branch Protection** (recommended):
+   - Require PR reviews
+   - Require status checks: CI, PR Validation
+   - Require branches to be up to date
+
 ## Usage Guide
 
 ### Running Workflows
@@ -246,7 +298,7 @@ flowchart LR
     A[git push] --> B{Where?}
     B -->|main| C[CI Workflow]
     B -->|feature-*| C
-    B -->|PR| D[PR Validation]
+    B -->|PR| D[PR Validation + Code Review]
     
     E[git tag v1.0.0] --> F[Release Workflow]
     G[git push --tags] --> F
@@ -450,9 +502,39 @@ graph TB
 5. **Review workflow permissions** in repository settings
 6. **Enable Copilot security scanning** for vulnerability detection
 
+## Feature Matrix
+
+### Workflow Capabilities
+
+| Feature | CI | PR Validation | Code Review | Release |
+|---------|:--:|:------------:|:-----------:|:-------:|
+| **Testing** | ✅ | ✅ | ❌ | ✅ |
+| **Coverage Report** | ✅ | ✅ | ❌ | ✅ |
+| **Build Verification** | ✅ | ✅ | ❌ | ✅ |
+| **TypeScript Check** | ✅ | ❌ | ❌ | ❌ |
+| **ESLint Analysis** | ❌ | ❌ | ✅ | ❌ |
+| **Security Scan** | ❌ | ❌ | ✅ | ❌ |
+| **Complexity Analysis** | ❌ | ❌ | ✅ | ❌ |
+| **PR Comments** | ❌ | ✅ | ✅ | ❌ |
+| **Label Management** | ❌ | ✅ | ✅ | ❌ |
+| **NPM Publishing** | ❌ | ❌ | ❌ | ✅ |
+| **GitHub Release** | ❌ | ❌ | ❌ | ✅ |
+| **Multi-Node Versions** | ✅ | ❌ | ❌ | ❌ |
+| **Copilot Integration** | ❌ | ✅ | ✅ | ❌ |
+
+### Coverage Reports
+
+Coverage is reported in multiple locations:
+
+1. **GitHub Actions Logs**: All workflows show coverage in console output
+2. **PR Comments**: Coverage percentages included in validation comments
+3. **Local Reports**: `./coverage/lcov-report/index.html` after running tests
+
 ## Resources
 
 - [GitHub Actions Documentation](https://docs.github.com/en/actions)
 - [NPM Publishing Guide](https://docs.npmjs.com/cli/v8/commands/npm-publish)
 - [Semantic Versioning](https://semver.org/)
 - [Conventional Commits](https://www.conventionalcommits.org/)
+- [GitHub Copilot Docs](https://docs.github.com/en/copilot)
+- [ESLint Documentation](https://eslint.org/docs/latest/)
