@@ -294,5 +294,46 @@ describe('PersonaUtils', () => {
       expect(basePersona.expertise).toEqual(originalExpertise);
       expect(basePersona.communicationStyle).toBe(originalStyle);
     });
+
+    it('should change persona name', () => {
+      const modified = PersonaUtils.applyPersonaModifications(basePersona, 'Change the name to "Career Pivot Guru"');
+
+      expect(modified.name).toBe('Career Pivot Guru');
+      expect(modified.description).toBe(basePersona.description);
+      expect(modified.systemPrompt).toBe(basePersona.systemPrompt);
+    });
+
+    it('should handle different name change patterns', () => {
+      const testCases = [
+        { input: 'change name to "New Name"', expected: 'New Name' },
+        { input: 'update the name to "Updated Name"', expected: 'Updated Name' },
+        { input: 'set name "Set Name"', expected: 'Set Name' },
+        { input: 'name to "Simple Name"', expected: 'Simple Name' },
+        { input: 'Change the name to "Career Pivot Guru" instead of "A Wise And"', expected: 'Career Pivot Guru' }
+      ];
+
+      testCases.forEach(({ input, expected }) => {
+        const modified = PersonaUtils.applyPersonaModifications(basePersona, input);
+        expect(modified.name).toBe(expected);
+      });
+    });
+
+    it('should change persona description', () => {
+      const modified = PersonaUtils.applyPersonaModifications(basePersona, 'Change the description to "A new description"');
+
+      expect(modified.description).toBe('A new description');
+      expect(modified.name).toBe(basePersona.name);
+      expect(modified.systemPrompt).toBe(basePersona.systemPrompt);
+    });
+
+    it('should handle both name and description changes', () => {
+      const modified = PersonaUtils.applyPersonaModifications(
+        basePersona, 
+        'Change the name to "New Name" and update the description to "New description"'
+      );
+
+      expect(modified.name).toBe('New Name');
+      expect(modified.description).toBe('New description');
+    });
   });
 });

@@ -212,11 +212,42 @@ export class PersonaUtils {
   }
 
   static applyPersonaModifications(persona: Persona, modifications: string): Persona {
+    Logger.debug('[DEBUG] applyPersonaModifications called:', {
+      originalName: persona.name,
+      modifications: modifications
+    });
+    
     let updatedPersona = { 
       ...persona,
       expertise: [...persona.expertise], // Create a new array to avoid mutation
       traits: [...persona.traits] // Also copy traits array for consistency
     };
+
+    // Handle name changes - supports patterns like:
+    // "change name to X", "update name to X", "change the name from Y to X"
+    const nameChangeMatch = modifications.match(/(?:change|update|set)?\s*(?:the\s+)?name\s+(?:from\s+[""'"][^""'']*[""'']?\s+)?(?:to\s+)?[""'"]([^""'']*)[""'']?/i);
+    Logger.debug('[DEBUG] Name change regex match:', nameChangeMatch);
+    if (nameChangeMatch) {
+      const newName = nameChangeMatch[1].trim();
+      Logger.debug(`[DEBUG] Applying name change: ${persona.name} -> ${newName}`);
+      updatedPersona = {
+        ...updatedPersona,
+        name: newName
+      };
+    } else {
+      Logger.debug(`[DEBUG] No name change match found for: ${modifications}`);
+    }
+
+    // Handle description changes - supports patterns like:
+    // "change description to X", "update description to X", "change the description from Y to X"  
+    const descriptionChangeMatch = modifications.match(/(?:change|update|set)?\s*(?:the\s+)?description\s+(?:from\s+[""'"][^""'']*[""'']?\s+)?(?:to\s+)?[""'"]([^""'']*)[""'']?/i);
+    if (descriptionChangeMatch) {
+      const newDescription = descriptionChangeMatch[1].trim();
+      updatedPersona = {
+        ...updatedPersona,
+        description: newDescription
+      };
+    }
 
     if (modifications.includes('more formal') || modifications.includes('formal')) {
       updatedPersona = {
@@ -278,6 +309,7 @@ export class PersonaUtils {
       }
     }
 
+    Logger.debug(`[DEBUG] Returning persona with name: ${updatedPersona.name}`);
     return updatedPersona;
   }
 }
