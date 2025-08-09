@@ -5,8 +5,7 @@ class LoggerClass {
     return new Date().toISOString().replace('T', ' ').slice(0, -1);
   }
 
-  // Added dual emission: formatted (with timestamp/level) and raw message (for tests/consumers expecting plain args)
-  private log(level: LogLevel, message: string, data?: any, raw?: any): void {
+  private log(level: LogLevel, message: string, data?: any): void {
     const time = this.formatTime();
     let dataString = '';
     if (data !== undefined) {
@@ -19,19 +18,8 @@ class LoggerClass {
     }
     const logMessage = `[${time}] ${level}: ${message}${dataString}`;
     
-    // Primary formatted log (keeps existing behavior and logger tests passing)
-    if (data !== undefined || raw !== undefined) {
-      console.error(logMessage, raw ?? data);
-    } else {
-      console.error(logMessage);
-    }
-
-    // Additional raw emission to support tests that assert on plain message + data shape
-    if (data !== undefined || raw !== undefined) {
-      console.error(message, raw ?? data);
-    } else {
-      console.error(message);
-    }
+    // Single formatted log output
+    console.error(logMessage);
   }
 
   info(message: string, data?: any): void {
@@ -39,9 +27,8 @@ class LoggerClass {
   }
 
   error(message: string, error?: any): void {
-    // Keep first arg containing stringified error (for existing tests), and pass raw Error as well
     const formatted = error ? (error.stack || error.toString()) : undefined;
-    this.log('ERROR', message, formatted, error);
+    this.log('ERROR', message, formatted);
   }
 
   warn(message: string, data?: any): void {
