@@ -107,6 +107,47 @@ jobs:
           echo "💡 Consider using conventional commit format: type(scope): description"
         fi
     
+    - name: Trigger Copilot Review
+      if: github.event_name == 'pull_request' && (github.event.action == 'opened' || github.event.action == 'synchronize')
+      continue-on-error: true
+      run: |
+        echo "🤖 Copilot Review Information"
+        echo "=============================="
+        echo "Copilot automatically reviews PRs when:"
+        echo "1. GitHub Copilot is enabled for the repository"
+        echo "2. The repository has Copilot for Pull Requests enabled"
+        echo "3. The PR contains code changes"
+        echo ""
+        echo "To enable Copilot reviews:"
+        echo "1. Go to Settings → GitHub Copilot → Policies"
+        echo "2. Enable 'Copilot for Pull Requests'"
+        echo ""
+        echo "Copilot will automatically comment with:"
+        echo "- Code quality suggestions"
+        echo "- Security recommendations"
+        echo "- Performance improvements"
+        echo "- Best practice violations"
+    
+    - name: Add AI Review Labels
+      if: github.event_name == 'pull_request'
+      uses: actions/github-script@v6
+      continue-on-error: true
+      with:
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+        script: |
+          try {
+            // Add labels to indicate review status
+            await github.rest.issues.addLabels({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              labels: ['needs-review', 'automated-validation']
+            });
+            console.log('✅ Review labels added');
+          } catch (error) {
+            console.log('ℹ️ Could not add labels:', error.message);
+          }
+    
     - name: Comment PR with validation results
       if: always() && github.event_name == 'pull_request'
       uses: actions/github-script@v6

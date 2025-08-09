@@ -122,7 +122,36 @@ sequenceDiagram
 - Lines: 88.69%
 ```
 
-### 3. Release Workflow
+### 3. Automated Code Review
+
+**File:** `.github/workflows/code-review.yml`  
+**Triggers:** PR opened or synchronized with code changes
+
+```mermaid
+flowchart LR
+    A[PR Created/Updated] --> B[Code Quality Check]
+    B --> C[ESLint Analysis]
+    B --> D[Security Scan]
+    B --> E[Complexity Analysis]
+    C --> F[Generate Report]
+    D --> F
+    E --> F
+    F --> G[Post Review Comment]
+    G --> H[Add Labels]
+    
+    style A fill:#f9f,stroke:#333,stroke-width:2px
+    style G fill:#9ff,stroke:#333,stroke-width:2px
+```
+
+#### Features:
+- **ESLint Analysis**: Checks for code quality issues
+- **Security Scanning**: Detects hardcoded secrets and vulnerabilities
+- **Complexity Analysis**: Reports on code complexity metrics
+- **Automated Comments**: Posts detailed review feedback
+- **Label Management**: Adds review status labels
+- **Copilot Integration**: Information about AI-powered reviews
+
+### 4. Release Workflow
 
 **File:** `.github/workflows/release.yml`  
 **Triggers:** Push tags matching `v*` or manual workflow dispatch
@@ -374,6 +403,44 @@ Edit `.github/workflows/release.yml` to add pre/post release steps:
        F --> G[Ready for Release]
    ```
 
+## GitHub Copilot Integration
+
+### Enabling Copilot for Pull Requests
+
+1. **Repository Settings**:
+   - Go to Settings → GitHub Copilot
+   - Enable "Copilot for Pull Requests"
+
+2. **Copilot Features**:
+   - **Automatic PR Reviews**: AI-powered code suggestions
+   - **Security Scanning**: Identifies potential vulnerabilities
+   - **Code Quality**: Suggests improvements and best practices
+   - **Documentation**: Recommends missing documentation
+
+3. **Copilot Comments**:
+   ```markdown
+   Copilot will automatically comment on:
+   - Code smells and anti-patterns
+   - Performance optimizations
+   - Security vulnerabilities
+   - Missing error handling
+   - Suggested refactoring
+   ```
+
+### AI Review Workflow
+
+```mermaid
+graph TB
+    A[PR Opened] --> B{Copilot Enabled?}
+    B -->|Yes| C[Automatic Analysis]
+    B -->|No| D[Manual Review Only]
+    C --> E[Generate Suggestions]
+    E --> F[Post Review Comments]
+    F --> G[Developer Response]
+    G --> H[Update Code]
+    H --> C
+```
+
 ## Security Considerations
 
 1. **Never commit secrets** to the repository
@@ -381,6 +448,7 @@ Edit `.github/workflows/release.yml` to add pre/post release steps:
 3. **Limit token permissions** to minimum required
 4. **Rotate tokens regularly** (every 90 days recommended)
 5. **Review workflow permissions** in repository settings
+6. **Enable Copilot security scanning** for vulnerability detection
 
 ## Resources
 
