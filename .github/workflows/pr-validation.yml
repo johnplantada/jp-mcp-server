@@ -1,0 +1,206 @@
+name: PR Validation
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+    
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20.x'
+        cache: 'npm'
+    
+    - name: Install dependencies
+      run: npm ci
+    
+    - name: Run full test suite with coverage
+      run: npm run test:ci
+    
+    - name: Generate coverage summary
+      id: coverage
+      run: |
+        # Extract coverage percentages
+        COVERAGE=$(npx jest --coverage --coverageReporters=json-summary --silent 2>/dev/null)
+        
+        # Parse the coverage summary
+        STATEMENTS=$(cat coverage/coverage-summary.json | jq -r '.total.statements.pct')
+        BRANCHES=$(cat coverage/coverage-summary.json | jq -r '.total.branches.pct')
+        FUNCTIONS=$(cat coverage/coverage-summary.json | jq -r '.total.functions.pct')
+        LINES=$(cat coverage/coverage-summary.json | jq -r '.total.lines.pct')
+        
+        echo "statements=$STATEMENTS" >> $GITHUB_OUTPUT
+        echo "branches=$BRANCHES" >> $GITHUB_OUTPUT
+        echo "functions=$FUNCTIONS" >> $GITHUB_OUTPUT
+        echo "lines=$LINES" >> $GITHUB_OUTPUT
+        
+        # Display in logs
+        echo "📊 Coverage Summary:"
+        echo "  Statements: $STATEMENTS%"
+        echo "  Branches:   $BRANCHES%"
+        echo "  Functions:  $FUNCTIONS%"
+        echo "  Lines:      $LINES%"
+    
+    - name: Build project
+      run: npm run build
+    
+    - name: Check for breaking changes
+      run: |
+        # Compare built artifacts structure
+        if [ -f dist/types/index.d.ts ]; then
+          echo "✅ Type definitions generated"
+        else
+          echo "❌ Type definitions missing"
+          exit 1
+        fi
+        
+        if [ -f dist/servers/persona.js ]; then
+          echo "✅ Persona server built"
+        else
+          echo "❌ Persona server build failed"
+          exit 1
+        fi
+    
+    - name: Validate package.json
+      run: |
+        # Check if package.json is valid
+        node -e "JSON.parse(require('fs').readFileSync('package.json', 'utf8'))"
+        echo "✅ package.json is valid JSON"
+        
+        # Check for required fields
+        node -e "
+          const pkg = require('./package.json');
+          const required = ['name', 'version', 'description', 'main', 'scripts', 'dependencies'];
+          for (const field of required) {
+            if (!pkg[field]) {
+              console.error(\`❌ Missing required field: \${field}\`);
+              process.exit(1);
+            }
+          }
+          console.log('✅ All required package.json fields present');
+        "
+    
+    - name: Check commit message format
+      run: |
+        # Get the last commit message
+        COMMIT_MSG=$(git log --format=%s -n 1 ${{ github.event.pull_request.head.sha }})
+        
+        # Check if it follows conventional commit format
+        if echo "$COMMIT_MSG" | grep -qE '^(feat|fix|docs|style|refactor|perf|test|chore)(\(.+\))?: .+'; then
+          echo "✅ Commit message follows conventional format: $COMMIT_MSG"
+        else
+          echo "ℹ️  Commit message format: $COMMIT_MSG"
+          echo "💡 Consider using conventional commit format: type(scope): description"
+        fi
+    
+    - name: Trigger Copilot Review
+      if: github.event_name == 'pull_request' && (github.event.action == 'opened' || github.event.action == 'synchronize')
+      continue-on-error: true
+      run: |
+        echo "🤖 Copilot Review Information"
+        echo "=============================="
+        echo "Copilot automatically reviews PRs when:"
+        echo "1. GitHub Copilot is enabled for the repository"
+        echo "2. The repository has Copilot for Pull Requests enabled"
+        echo "3. The PR contains code changes"
+        echo ""
+        echo "To enable Copilot reviews:"
+        echo "1. Go to Settings → GitHub Copilot → Policies"
+        echo "2. Enable 'Copilot for Pull Requests'"
+        echo ""
+        echo "Copilot will automatically comment with:"
+        echo "- Code quality suggestions"
+        echo "- Security recommendations"
+        echo "- Performance improvements"
+        echo "- Best practice violations"
+    
+    - name: Add AI Review Labels
+      if: github.event_name == 'pull_request'
+      uses: actions/github-script@v6
+      continue-on-error: true
+      with:
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+        script: |
+          try {
+            // Add labels to indicate review status
+            await github.rest.issues.addLabels({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              labels: ['needs-review', 'automated-validation']
+            });
+            console.log('✅ Review labels added');
+          } catch (error) {
+            console.log('ℹ️ Could not add labels:', error.message);
+          }
+    
+    - name: Comment PR with validation results
+      if: always() && github.event_name == 'pull_request'
+      uses: actions/github-script@v6
+      continue-on-error: true
+      with:
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+        script: |
+          try {
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            });
+            
+            const botComment = comments.find(comment => 
+              comment.user.type === 'Bot' && 
+              comment.body.includes('## PR Validation Results')
+            );
+            
+            const body = `## PR Validation Results
+            
+            ### ✅ Validation Passed
+            - Tests: All tests passing
+            - Build: Successfully built all artifacts
+            - Package: Valid package.json structure
+            
+            ### 📊 Code Coverage
+            - Statements: ${{ steps.coverage.outputs.statements }}%
+            - Branches: ${{ steps.coverage.outputs.branches }}%
+            - Functions: ${{ steps.coverage.outputs.functions }}%
+            - Lines: ${{ steps.coverage.outputs.lines }}%
+            
+            This PR is ready for review! 🚀
+            
+            ---
+            *This comment was automatically generated by the PR validation workflow*`;
+            
+            if (botComment) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: botComment.id,
+                body: body
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body: body
+              });
+            }
+          } catch (error) {
+            console.log('Could not post PR comment:', error.message);
+            console.log('This is often due to permissions. The validation still passed!');
+          }

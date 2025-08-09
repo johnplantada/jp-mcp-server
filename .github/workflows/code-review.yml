@@ -1,0 +1,182 @@
+name: Automated Code Review
+
+on:
+  pull_request:
+    types: [opened, synchronize]
+    paths:
+      - '**.ts'
+      - '**.js'
+      - '**.json'
+      - '**.yml'
+      - '**.yaml'
+
+permissions:
+  contents: read
+  pull-requests: write
+  checks: write
+
+jobs:
+  code-quality:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+    
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20.x'
+        cache: 'npm'
+    
+    - name: Install dependencies
+      run: npm ci
+    
+    - name: Run ESLint Analysis
+      id: eslint
+      continue-on-error: true
+      run: |
+        # Install ESLint if not present
+        if ! npm list eslint &>/dev/null; then
+          npm install --save-dev eslint @typescript-eslint/parser @typescript-eslint/eslint-plugin
+        fi
+        
+        # Run ESLint and capture results
+        npx eslint src --ext .ts --format json > eslint-report.json || true
+        
+        # Count issues
+        ERRORS=$(cat eslint-report.json | jq '[.[] | .errorCount] | add // 0')
+        WARNINGS=$(cat eslint-report.json | jq '[.[] | .warningCount] | add // 0')
+        
+        echo "errors=$ERRORS" >> $GITHUB_OUTPUT
+        echo "warnings=$WARNINGS" >> $GITHUB_OUTPUT
+        
+        if [ "$ERRORS" -gt 0 ]; then
+          echo "❌ Found $ERRORS ESLint errors"
+          exit 1
+        elif [ "$WARNINGS" -gt 0 ]; then
+          echo "⚠️ Found $WARNINGS ESLint warnings"
+        else
+          echo "✅ No ESLint issues found"
+        fi
+    
+    - name: Check for Security Issues
+      id: security
+      continue-on-error: true
+      run: |
+        # Check for common security patterns
+        echo "🔍 Checking for security issues..."
+        
+        ISSUES=0
+        
+        # Check for hardcoded secrets
+        if grep -r "api[_-]key.*=.*['\"]" src/ --include="*.ts" --include="*.js" 2>/dev/null; then
+          echo "⚠️ Potential hardcoded API keys found"
+          ISSUES=$((ISSUES + 1))
+        fi
+        
+        # Check for console.log in production code
+        CONSOLE_LOGS=$(grep -r "console\.log" src/ --include="*.ts" --exclude="*test*" --exclude="*spec*" | wc -l)
+        if [ "$CONSOLE_LOGS" -gt 0 ]; then
+          echo "ℹ️ Found $CONSOLE_LOGS console.log statements (consider using Logger)"
+        fi
+        
+        echo "security_issues=$ISSUES" >> $GITHUB_OUTPUT
+    
+    - name: Analyze Code Complexity
+      continue-on-error: true
+      run: |
+        echo "📊 Code Complexity Analysis"
+        echo "=========================="
+        
+        # Count lines of code
+        echo "Lines of TypeScript code:"
+        find src -name "*.ts" -not -path "*/node_modules/*" | xargs wc -l | tail -1
+        
+        # Count number of files
+        echo ""
+        echo "Number of TypeScript files:"
+        find src -name "*.ts" -not -path "*/node_modules/*" | wc -l
+        
+        # Check for large files
+        echo ""
+        echo "Files over 300 lines:"
+        find src -name "*.ts" -exec wc -l {} \; | awk '$1 > 300 {print $2 ": " $1 " lines"}'
+    
+    - name: Generate Review Summary
+      if: always()
+      uses: actions/github-script@v6
+      continue-on-error: true
+      with:
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+        script: |
+          const eslintErrors = '${{ steps.eslint.outputs.errors }}' || '0';
+          const eslintWarnings = '${{ steps.eslint.outputs.warnings }}' || '0';
+          const securityIssues = '${{ steps.security.outputs.security_issues }}' || '0';
+          
+          let reviewBody = `## 🤖 Automated Code Review\n\n`;
+          
+          // Overall status
+          if (eslintErrors === '0' && securityIssues === '0') {
+            reviewBody += `### ✅ Code Quality Check Passed\n\n`;
+          } else {
+            reviewBody += `### ⚠️ Code Quality Issues Found\n\n`;
+          }
+          
+          // ESLint results
+          reviewBody += `#### 📝 Linting Results\n`;
+          reviewBody += `- Errors: ${eslintErrors}\n`;
+          reviewBody += `- Warnings: ${eslintWarnings}\n\n`;
+          
+          // Security check
+          reviewBody += `#### 🔒 Security Analysis\n`;
+          if (securityIssues === '0') {
+            reviewBody += `- No security issues detected\n\n`;
+          } else {
+            reviewBody += `- Found ${securityIssues} potential security issue(s)\n\n`;
+          }
+          
+          // Recommendations
+          reviewBody += `#### 💡 Recommendations\n`;
+          reviewBody += `1. Run \`npm test\` locally before pushing\n`;
+          reviewBody += `2. Ensure all ESLint errors are resolved\n`;
+          reviewBody += `3. Review any security warnings\n`;
+          reviewBody += `4. Consider adding tests for new features\n\n`;
+          
+          // Copilot note
+          reviewBody += `---\n`;
+          reviewBody += `*💡 For AI-powered code suggestions, enable [GitHub Copilot](https://github.com/features/copilot) for this repository*\n`;
+          reviewBody += `*This automated review supplements but does not replace human code review*`;
+          
+          try {
+            // Check if we already commented
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            });
+            
+            const existingComment = comments.find(comment => 
+              comment.body.includes('## 🤖 Automated Code Review')
+            );
+            
+            if (existingComment) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: existingComment.id,
+                body: reviewBody
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body: reviewBody
+              });
+            }
+          } catch (error) {
+            console.log('Could not post review comment:', error.message);
+          }
