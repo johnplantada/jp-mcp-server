@@ -1,0 +1,33 @@
+# Source files (only ship compiled JS)
+src/
+tests/
+coverage/
+
+# Development files
+.github/
+jest.config.js
+tsconfig.json
+*.log
+
+# Development docs
+DEVELOPMENT.md
+PERSONA_SETUP.md
+REFACTORING_SUMMARY.md
+TESTING_SUMMARY.md
+
+# IDE and OS files
+.vscode/
+.DS_Store
+Thumbs.db
+
+# Node modules (should never be included anyway)
+node_modules/
+
+# Git files
+.git/
+.gitignore
+
+# Environment files
+.env
+.env.local
+.env.*.local
