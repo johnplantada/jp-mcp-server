@@ -1,45 +1,236 @@
 # JP MCP Server
 
-A Model Context Protocol (MCP) server that provides text search capabilities using fuzzy matching.
+A Model Context Protocol (MCP) implementation providing AI persona capabilities with a shared, scalable architecture.
 
-## Features
+## 🚀 Features
 
-- Add documents with title, content, and metadata
-- Fuzzy text search across documents
-- Retrieve documents by ID
-- Remove documents from the index
-- List all indexed documents
+### Persona Server
+- AI persona management and switching
+- Pre-configured personas (Expert Developer, Friendly Tutor, Creative Innovator, etc.)
+- Custom persona creation and modification
+- Persona generation from natural language descriptions
+- Persistent storage of personas and settings
 
-## Installation
+## 📦 Installation
 
 ```bash
 npm install
 ```
 
-## Build
+## 🔨 Build
 
 ```bash
 npm run build
 ```
 
-## Usage
+## 🖥️ Usage
 
-The server runs on stdio and can be integrated with MCP-compatible clients.
-
-### Available Tools
-
-1. **add_document** - Add a document to the search index
-2. **search** - Search for documents using fuzzy text matching
-3. **get_document** - Retrieve a specific document by ID
-4. **remove_document** - Remove a document from the index
-5. **list_documents** - List all documents in the index
-
-## Development
+### Running Servers
 
 ```bash
-npm run dev
+# List available servers (does not start servers)
+npm run server:list
+
+# Persona server (development)
+npm run dev:persona
+
+# Persona server (production)
+npm run start:persona
+
+# Using the CLI runner
+npm run server persona
 ```
 
-## License
+## 🏗️ Architecture
+
+The project uses a shared architecture pattern that promotes code reuse and consistency across MCP servers:
+
+```
+src/
+├── base/           # Shared base classes
+│   └── McpServerBase.ts
+├── config/         # Configuration management
+│   └── index.ts
+├── servers/        # MCP servers
+│   ├── PersonaServer.ts        # Persona server implementation
+│   ├── persona.register.ts     # Registration-only (no side effects)
+│   └── persona.ts              # Executable entry point (starts server)
+├── types/          # TypeScript type definitions
+│   └── index.ts
+├── utils/          # Shared utilities
+│   ├── logger.ts
+│   ├── errors.ts
+│   ├── schemaBuilder.ts
+│   └── personaUtils.ts
+├── registry/       # Server discovery and management
+│   └── ServerRegistry.ts
+└── cli/            # Command-line interface
+    └── runner.ts
+```
+
+Notes:
+- The CLI imports the register-only file (e.g., `persona.register.ts`) to avoid starting servers on import.
+- Executable entries (e.g., `persona.ts`) guard startup behind an ESM main-check.
+
+## 🎭 Persona Server Tools
+
+1. **list_personas** - List all available AI personas
+2. **get_active_persona** - Get the currently active persona
+3. **switch_persona** - Switch to a different AI persona
+4. **get_persona_details** - Get detailed information about a specific persona
+5. **create_custom_persona** - Create a new custom persona
+6. **delete_persona** - Delete a persona
+7. **get_persona_prompt** - Get the system prompt for the active persona
+8. **generate_persona** - Generate a new persona from a description
+9. **update_persona** - Update an existing persona
+10. **set_default_persona** - Set the default persona for server startup
+
+## 📍 Persona Storage
+
+Personas are stored in: `~/.mcp-personas.json`
+
+The file contains:
+- Array of all persona objects
+- Currently active persona ID
+- Default persona ID for startup
+
+## 🔄 Adding New Servers
+
+1. Create a server class extending `McpServerBase`:
+
+```typescript
+import { McpServerBase } from '../base/McpServerBase.js';
+
+export class MyNewServer extends McpServerBase {
+  protected setupTools(): void {
+    this.registerTool('my_tool', this.handleMyTool.bind(this), schema);
+  }
+
+  private async handleMyTool(args: any) {
+    return this.createResponse('Hello from my tool!');
+  }
+}
+```
+
+2. Create a register-only file (import-safe):
+
+```typescript
+// src/servers/my-new-server.register.ts
+import { MyNewServer } from './MyNewServer.js';
+import { ServerRegistry } from '../registry/ServerRegistry.js';
+
+ServerRegistry.register({
+  name: 'my-new-server',
+  description: 'Description of my server',
+  serverClass: MyNewServer,
+  config: { name: 'my-new-server', version: '1.0.0' },
+  entryPoint: 'dist/servers/my-new-server.js',
+});
+```
+
+3. Create an executable entry with ESM main-check:
+
+```typescript
+// src/servers/my-new-server.ts
+#!/usr/bin/env node
+import { MyNewServer } from './MyNewServer.js';
+import { ServerRegistry } from '../registry/ServerRegistry.js';
+import { pathToFileURL } from 'url';
+
+async function main() {
+  ServerRegistry.register({
+    name: 'my-new-server',
+    description: 'Description of my server',
+    serverClass: MyNewServer,
+    config: { name: 'my-new-server', version: '1.0.0' },
+    entryPoint: 'dist/servers/my-new-server.js',
+  });
+
+  const server = new MyNewServer({ name: 'my-new-server', version: '1.0.0' });
+  await server.run();
+}
+
+if (import.meta.url === pathToFileURL(process.argv[1]).href) {
+  main().catch(console.error);
+}
+```
+
+4. Update CLI runner to import the register file:
+
+```typescript
+// src/cli/runner.ts
+import '../servers/my-new-server.register.js';
+```
+
+5. Add scripts to package.json:
+
+```json
+{
+  "scripts": {
+    "dev:my-new-server": "tsx src/servers/my-new-server.ts",
+    "start:my-new-server": "node dist/servers/my-new-server.js"
+  }
+}
+```
+
+## 🔧 Configuration
+
+Server configurations are managed in `src/config/index.ts`.
+
+## 🛠️ Development
+
+```bash
+# Development mode (with hot reload)
+npm run dev:persona
+
+# List registered servers
+npm run server:list
+```
+
+## 🧪 Integration with MCP Clients
+
+### Claude Code Configuration
+
+```json
+{
+  "mcpServers": {
+    "persona": {
+      "command": "node",
+      "args": ["/path/to/jp-mcp-server/dist/servers/persona.js"]
+    }
+  }
+}
+```
+
+### Claude Desktop Configuration
+
+```json
+{
+  "mcpServers": {
+    "persona": {
+      "command": "node",
+      "args": ["/Users/username/path/to/jp-mcp-server/dist/servers/persona.js"]
+    }
+  }
+}
+```
+
+## 📝 Available Personas
+
+- **Expert Developer** - Senior software engineer with deep technical expertise
+- **Friendly Tutor** - Patient programming teacher for beginners
+- **Creative Innovator** - Out-of-the-box thinker for innovative solutions
+- **Efficiency Optimizer** - Performance and productivity specialist
+- **Security Guardian** - Cybersecurity expert focused on secure coding
+
+## 🤝 Contributing
+
+- Follow the established architecture patterns
+- Use the shared utilities (Logger, SchemaBuilder, ErrorHandler)
+- Add proper TypeScript types
+- Register your server in the ServerRegistry (register-only file)
+- Update documentation
+
+## 📄 License
 
 MIT

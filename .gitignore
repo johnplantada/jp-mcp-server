@@ -7,3 +7,5 @@ dist/
 *.swo
 .vscode/
 .idea/
+coverage/
+coverage/**

@@ -1,23 +1,58 @@
 {
   "name": "jp-mcp-server",
   "version": "0.1.0",
-  "description": "MCP server providing text search capabilities",
-  "main": "dist/index.js",
+  "description": "MCP server providing AI persona management and switching capabilities",
   "type": "module",
+  "main": "dist/servers/persona.js",
+  "bin": {
+    "jp-mcp-server-persona": "dist/servers/persona.js"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/types/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "files": [
+    "dist/**",
+    "README.md",
+    "LICENSE"
+  ],
   "scripts": {
     "build": "tsc",
-    "start": "node dist/index.js",
-    "dev": "tsx src/index.ts"
+    "server": "tsx src/cli/runner.ts",
+    "server:list": "tsx src/cli/runner.ts list",
+    "start:persona": "node dist/servers/persona.js",
+    "dev:persona": "tsx src/servers/persona.ts",
+    "dev": "npm run dev:persona",
+    "logs": "tail -f persona-server.log",
+    "logs:clear": "rm -f persona-server.log",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage",
+    "test:unit": "jest tests/utils tests/base tests/servers --testPathIgnorePatterns=integration",
+    "test:integration": "jest tests/integration",
+    "test:ci": "jest --coverage --watchAll=false"
   },
-  "keywords": ["mcp", "search", "text"],
+  "keywords": [
+    "mcp",
+    "persona",
+    "ai"
+  ],
   "author": "",
   "license": "MIT",
   "dependencies": {
-    "@modelcontextprotocol/sdk": "^0.5.0",
-    "fuse.js": "^7.0.0"
+    "@modelcontextprotocol/sdk": "^0.5.0"
   },
   "devDependencies": {
+    "@jest/globals": "^30.0.5",
+    "@types/jest": "^30.0.0",
     "@types/node": "^20.0.0",
+    "jest": "^30.0.5",
+    "ts-jest": "^29.4.1",
     "tsx": "^4.0.0",
     "typescript": "^5.0.0"
   }
