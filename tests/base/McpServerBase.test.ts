@@ -182,8 +182,7 @@ describe('McpServerBase', () => {
         
         await expect(callToolHandler(request)).rejects.toThrow('Test error');
         expect(loggerSpy).toHaveBeenCalledWith(
-          expect.stringContaining('Error handling tool request: error_tool'),
-          expect.any(Error)
+          expect.stringMatching(/ERROR.*Error handling tool request: error_tool.*Test error/s)
         );
       }
     });
@@ -199,11 +198,7 @@ describe('McpServerBase', () => {
         await callToolHandler(request);
         
         expect(loggerSpy).toHaveBeenCalledWith(
-          'Handling tool request: test_tool',
-          expect.objectContaining({
-            server: 'test-persona-server',
-            arguments: { message: 'Hello' }
-          })
+          expect.stringMatching(/INFO.*Handling tool request: test_tool.*"message".*"Hello"/s)
         );
       }
     });
@@ -216,7 +211,7 @@ describe('McpServerBase', () => {
         await listToolsHandler();
         
         expect(loggerSpy).toHaveBeenCalledWith(
-          'Handling ListTools request for test-persona-server'
+          expect.stringMatching(/INFO.*Handling ListTools request for test-persona-server/)
         );
       }
     });
@@ -235,7 +230,7 @@ describe('McpServerBase', () => {
       
       expect(connectSpy).toHaveBeenCalledWith(expect.any(Object));
       expect(loggerSpy).toHaveBeenCalledWith(
-        'Starting test-persona-server MCP server'
+        expect.stringMatching(/INFO.*Starting test-persona-server MCP server/)
       );
       
       // Clean up by rejecting the promise (since we mocked connect)
