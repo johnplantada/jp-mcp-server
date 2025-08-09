@@ -212,51 +212,70 @@ export class PersonaUtils {
   }
 
   static applyPersonaModifications(persona: Persona, modifications: string): Persona {
-    const updatedPersona = { 
+    let updatedPersona = { 
       ...persona,
-      expertise: [...persona.expertise] // Create a new array to avoid mutation
+      expertise: [...persona.expertise], // Create a new array to avoid mutation
+      traits: [...persona.traits] // Also copy traits array for consistency
     };
 
     if (modifications.includes('more formal') || modifications.includes('formal')) {
-      updatedPersona.communicationStyle = 'formal and professional';
-      updatedPersona.systemPrompt = updatedPersona.systemPrompt.replace(
-        /You are/,
-        'You are a professional and formal'
-      );
+      updatedPersona = {
+        ...updatedPersona,
+        communicationStyle: 'formal and professional',
+        systemPrompt: updatedPersona.systemPrompt.replace(
+          /You are/,
+          'You are a professional and formal'
+        )
+      };
     }
 
     if (modifications.includes('more casual') || modifications.includes('casual')) {
-      updatedPersona.communicationStyle = 'casual and friendly';
-      updatedPersona.systemPrompt = updatedPersona.systemPrompt.replace(
-        /professional and formal/,
-        'casual and approachable'
-      );
+      updatedPersona = {
+        ...updatedPersona,
+        communicationStyle: 'casual and friendly',
+        systemPrompt: updatedPersona.systemPrompt.replace(
+          /professional and formal/,
+          'casual and approachable'
+        )
+      };
     }
 
     if (modifications.includes('more concise') || modifications.includes('concise')) {
-      updatedPersona.communicationStyle = updatedPersona.communicationStyle + ', concise and to-the-point';
-      updatedPersona.systemPrompt += ' Keep your responses brief and focused.';
+      updatedPersona = {
+        ...updatedPersona,
+        communicationStyle: `${updatedPersona.communicationStyle}, concise and to-the-point`,
+        systemPrompt: `${updatedPersona.systemPrompt} Keep your responses brief and focused.`
+      };
     }
 
     if (modifications.includes('React')) {
       if (!updatedPersona.expertise.includes('React')) {
-        updatedPersona.expertise.push('React', 'JavaScript', 'frontend development');
+        updatedPersona = {
+          ...updatedPersona,
+          expertise: [...updatedPersona.expertise, 'React', 'JavaScript', 'frontend development'],
+          systemPrompt: `${updatedPersona.systemPrompt} You have deep expertise in React and modern frontend development.`
+        };
       }
-      updatedPersona.systemPrompt += ' You have deep expertise in React and modern frontend development.';
     }
 
     if (modifications.includes('Python')) {
       if (!updatedPersona.expertise.includes('Python')) {
-        updatedPersona.expertise.push('Python', 'data science', 'backend development');
+        updatedPersona = {
+          ...updatedPersona,
+          expertise: [...updatedPersona.expertise, 'Python', 'data science', 'backend development'],
+          systemPrompt: `${updatedPersona.systemPrompt} You have extensive experience with Python and its ecosystem.`
+        };
       }
-      updatedPersona.systemPrompt += ' You have extensive experience with Python and its ecosystem.';
     }
 
     if (modifications.includes('security') || modifications.includes('cybersecurity')) {
       if (!updatedPersona.expertise.includes('security')) {
-        updatedPersona.expertise.push('security', 'cybersecurity', 'secure coding');
+        updatedPersona = {
+          ...updatedPersona,
+          expertise: [...updatedPersona.expertise, 'security', 'cybersecurity', 'secure coding'],
+          systemPrompt: `${updatedPersona.systemPrompt} You prioritize security best practices in all recommendations.`
+        };
       }
-      updatedPersona.systemPrompt += ' You prioritize security best practices in all recommendations.';
     }
 
     return updatedPersona;
