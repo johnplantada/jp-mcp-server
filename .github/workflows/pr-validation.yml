@@ -23,8 +23,32 @@ jobs:
     - name: Install dependencies
       run: npm ci
     
-    - name: Run full test suite
+    - name: Run full test suite with coverage
       run: npm run test:ci
+    
+    - name: Generate coverage summary
+      id: coverage
+      run: |
+        # Extract coverage percentages
+        COVERAGE=$(npx jest --coverage --coverageReporters=json-summary --silent 2>/dev/null)
+        
+        # Parse the coverage summary
+        STATEMENTS=$(cat coverage/coverage-summary.json | jq -r '.total.statements.pct')
+        BRANCHES=$(cat coverage/coverage-summary.json | jq -r '.total.branches.pct')
+        FUNCTIONS=$(cat coverage/coverage-summary.json | jq -r '.total.functions.pct')
+        LINES=$(cat coverage/coverage-summary.json | jq -r '.total.lines.pct')
+        
+        echo "statements=$STATEMENTS" >> $GITHUB_OUTPUT
+        echo "branches=$BRANCHES" >> $GITHUB_OUTPUT
+        echo "functions=$FUNCTIONS" >> $GITHUB_OUTPUT
+        echo "lines=$LINES" >> $GITHUB_OUTPUT
+        
+        # Display in logs
+        echo "📊 Coverage Summary:"
+        echo "  Statements: $STATEMENTS%"
+        echo "  Branches:   $BRANCHES%"
+        echo "  Functions:  $FUNCTIONS%"
+        echo "  Lines:      $LINES%"
     
     - name: Build project
       run: npm run build
@@ -100,6 +124,12 @@ jobs:
           - Tests: All tests passing
           - Build: Successfully built all artifacts
           - Package: Valid package.json structure
+          
+          ### 📊 Code Coverage
+          - Statements: ${{ steps.coverage.outputs.statements }}%
+          - Branches: ${{ steps.coverage.outputs.branches }}%
+          - Functions: ${{ steps.coverage.outputs.functions }}%
+          - Lines: ${{ steps.coverage.outputs.lines }}%
           
           This PR is ready for review! 🚀
           
