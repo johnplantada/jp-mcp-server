@@ -2,6 +2,13 @@
 
 A Model Context Protocol (MCP) implementation providing AI persona capabilities with a shared, scalable architecture.
 
+## 📚 Documentation
+
+- **[User Guide](./docs/USER_GUIDE.md)** - Comprehensive guide for using all features
+- **[CI/CD Documentation](./CICD.md)** - GitHub Actions workflows and automation
+- **[Testing Guide](./TESTING.md)** - Running and writing tests
+- **[Manual Test Cases](./MANUAL_TEST_CASES.md)** - Manual testing procedures
+
 ## 🚀 Features
 
 ### Persona Server
@@ -10,6 +17,9 @@ A Model Context Protocol (MCP) implementation providing AI persona capabilities 
 - Custom persona creation and modification
 - Persona generation from natural language descriptions
 - Persistent storage of personas and settings
+- **NEW:** Expired persona recovery with 24-hour grace period
+- **NEW:** Persona blending for complex multi-domain tasks
+- **NEW:** Usage statistics and smart recommendations
 
 ## 📦 Installation
 
@@ -245,11 +255,14 @@ npm run server:list
 
 ## 📝 Available Personas
 
+Default personas available on first run:
 - **Expert Developer** - Senior software engineer with deep technical expertise
 - **Friendly Tutor** - Patient programming teacher for beginners
 - **Creative Innovator** - Out-of-the-box thinker for innovative solutions
 - **Efficiency Optimizer** - Performance and productivity specialist
 - **Security Guardian** - Cybersecurity expert focused on secure coding
+
+You can create unlimited custom personas tailored to your specific needs. See the [User Guide](./docs/USER_GUIDE.md) for detailed instructions.
 
 ## 🚀 CI/CD Pipeline
 
