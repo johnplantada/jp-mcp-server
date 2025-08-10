@@ -18,36 +18,60 @@ export class SchemaBuilder {
     };
   }
 
+  // Generic property builder to eliminate repetition
+  private static createProperty<T>(config: {
+    type: string;
+    description: string;
+    defaultValue?: T;
+    items?: { type: string };
+    additionalProperties?: boolean;
+  }): any {
+    const property: any = {
+      type: config.type,
+      description: config.description,
+    };
+    
+    // Only set default when explicitly provided (allow empty string/false/0)
+    if (config.defaultValue !== undefined && config.defaultValue !== null) {
+      property.default = config.defaultValue;
+    }
+    
+    if (config.items) property.items = config.items;
+    if (config.additionalProperties !== undefined) property.additionalProperties = config.additionalProperties;
+    
+    return property;
+  }
+
   static stringProperty(description: string, defaultValue?: string): any {
-    return {
+    return SchemaBuilder.createProperty({
       type: 'string',
       description,
-      ...(defaultValue && { default: defaultValue }),
-    };
+      defaultValue,
+    });
   }
 
   static numberProperty(description: string, defaultValue?: number): any {
-    return {
+    return SchemaBuilder.createProperty({
       type: 'number',
       description,
-      ...(defaultValue !== undefined && { default: defaultValue }),
-    };
+      defaultValue,
+    });
   }
 
   static arrayProperty(description: string, itemType: string = 'string'): any {
-    return {
+    return SchemaBuilder.createProperty({
       type: 'array',
-      items: { type: itemType },
       description,
-    };
+      items: { type: itemType },
+    });
   }
 
   static objectProperty(description: string, additionalProperties: boolean = true): any {
-    return {
+    return SchemaBuilder.createProperty({
       type: 'object',
       description,
       additionalProperties,
-    };
+    });
   }
 
   static emptyObjectSchema(): Record<string, any> {

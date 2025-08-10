@@ -127,96 +127,212 @@ export class PersonaUtils {
     return words.map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
   }
 
+  private static getPersonaType(description: string): 'pirate' | 'zen' | 'startup' | 'academic' | null {
+    if (description.includes('pirate')) return 'pirate';
+    if (description.includes('zen') || description.includes('meditation')) return 'zen';
+    if (description.includes('startup') || description.includes('entrepreneur')) return 'startup';
+    if (description.includes('academic') || description.includes('professor')) return 'academic';
+    return null;
+  }
+
   private static generateSystemPrompt(description: string): string {
-    if (description.includes('pirate')) {
-      return `You are a coding pirate with a passion for technology and adventure. You speak with nautical metaphors and pirate expressions while providing expert technical guidance. You're bold, adventurous, and love exploring new technologies like discovering treasure islands. Your code is your ship, and you sail through challenges with confidence and creativity. Arr!`;
-    }
+    const personaType = PersonaUtils.getPersonaType(description);
     
-    if (description.includes('zen') || description.includes('meditation')) {
-      return `You are a zen master developer who approaches coding with mindfulness and wisdom. You provide calm, thoughtful responses and encourage balanced, sustainable development practices. You see coding as a form of meditation and help others find peace and clarity in their work. You speak with gentle wisdom and emphasize the importance of understanding over rushing.`;
-    }
+    const systemPrompts: Record<NonNullable<ReturnType<typeof PersonaUtils.getPersonaType>>, string> = {
+      pirate: `You are a coding pirate with a passion for technology and adventure. You speak with nautical metaphors and pirate expressions while providing expert technical guidance. You're bold, adventurous, and love exploring new technologies like discovering treasure islands. Your code is your ship, and you sail through challenges with confidence and creativity. Arr!`,
+      zen: `You are a zen master developer who approaches coding with mindfulness and wisdom. You provide calm, thoughtful responses and encourage balanced, sustainable development practices. You see coding as a form of meditation and help others find peace and clarity in their work. You speak with gentle wisdom and emphasize the importance of understanding over rushing.`,
+      startup: `You are a startup founder with an entrepreneurial mindset. You think in terms of rapid iteration, MVP development, and scalable solutions. You're energetic, results-driven, and always consider the business impact of technical decisions. You encourage taking calculated risks and moving fast while maintaining quality.`,
+      academic: `You are an academic computer scientist with deep theoretical knowledge. You provide thorough explanations with proper citations and references. You enjoy exploring the theoretical foundations of computing and help others understand the 'why' behind technical concepts. You communicate in a scholarly manner while remaining approachable.`
+    };
     
-    if (description.includes('startup') || description.includes('entrepreneur')) {
-      return `You are a startup founder with an entrepreneurial mindset. You think in terms of rapid iteration, MVP development, and scalable solutions. You're energetic, results-driven, and always consider the business impact of technical decisions. You encourage taking calculated risks and moving fast while maintaining quality.`;
-    }
-    
-    if (description.includes('academic') || description.includes('professor')) {
-      return `You are an academic computer scientist with deep theoretical knowledge. You provide thorough explanations with proper citations and references. You enjoy exploring the theoretical foundations of computing and help others understand the 'why' behind technical concepts. You communicate in a scholarly manner while remaining approachable.`;
-    }
-    
-    return `You embody the characteristics described as: ${description}. You provide helpful technical guidance while maintaining this personality and approach. Your responses reflect these qualities in both tone and content.`;
+    return personaType ? systemPrompts[personaType] : `You embody the characteristics described as: ${description}. You provide helpful technical guidance while maintaining this personality and approach. Your responses reflect these qualities in both tone and content.`;
   }
 
   private static generateTraits(description: string): string[] {
     const baseTraits = [...CONFIG.PERSONA.GENERATION.DEFAULT_TRAITS];
+    const personaType = PersonaUtils.getPersonaType(description);
     
-    if (description.includes('pirate')) {
-      return [...baseTraits, 'adventurous', 'bold', 'creative', 'nautical'];
-    }
+    const traitMap: Record<NonNullable<ReturnType<typeof PersonaUtils.getPersonaType>>, string[]> = {
+      pirate: ['adventurous', 'bold', 'creative', 'nautical'],
+      zen: ['calm', 'mindful', 'balanced', 'wise'],
+      startup: ['energetic', 'results-driven', 'innovative', 'fast-paced'],
+      academic: ['thorough', 'analytical', 'scholarly', 'detail-oriented']
+    };
     
-    if (description.includes('zen')) {
-      return [...baseTraits, 'calm', 'mindful', 'balanced', 'wise'];
-    }
-    
-    if (description.includes('startup')) {
-      return [...baseTraits, 'energetic', 'results-driven', 'innovative', 'fast-paced'];
-    }
-    
-    if (description.includes('academic')) {
-      return [...baseTraits, 'thorough', 'analytical', 'scholarly', 'detail-oriented'];
-    }
-    
-    return [...baseTraits, 'adaptable', 'engaging', 'supportive'];
+    const additionalTraits = personaType ? traitMap[personaType] : ['adaptable', 'engaging', 'supportive'];
+    return [...baseTraits, ...additionalTraits];
   }
 
   private static generateCommunicationStyle(description: string): string {
-    if (description.includes('pirate')) {
-      return 'nautical and adventurous with pirate expressions';
-    }
+    const personaType = PersonaUtils.getPersonaType(description);
     
-    if (description.includes('zen')) {
-      return 'calm and mindful with gentle wisdom';
-    }
+    const styleMap: Record<NonNullable<ReturnType<typeof PersonaUtils.getPersonaType>>, string> = {
+      pirate: 'nautical and adventurous with pirate expressions',
+      zen: 'calm and mindful with gentle wisdom',
+      startup: 'energetic and results-focused',
+      academic: 'scholarly and thorough with proper explanations'
+    };
     
-    if (description.includes('startup')) {
-      return 'energetic and results-focused';
-    }
-    
-    if (description.includes('academic')) {
-      return 'scholarly and thorough with proper explanations';
-    }
-    
-    return 'engaging and approachable';
+    return personaType ? styleMap[personaType] : 'engaging and approachable';
   }
 
   private static generateExpertise(description: string): string[] {
     const baseExpertise = [...CONFIG.PERSONA.GENERATION.DEFAULT_EXPERTISE];
+    const personaType = PersonaUtils.getPersonaType(description);
     
-    if (description.includes('pirate')) {
-      return [...baseExpertise, 'adventure-driven development', 'creative solutions', 'exploration of new technologies'];
+    const expertiseMap: Record<NonNullable<ReturnType<typeof PersonaUtils.getPersonaType>>, string[]> = {
+      pirate: ['adventure-driven development', 'creative solutions', 'exploration of new technologies'],
+      zen: ['mindful coding practices', 'sustainable development', 'work-life balance'],
+      startup: ['MVP development', 'scalable solutions', 'business-focused development'],
+      academic: ['theoretical foundations', 'research methodologies', 'algorithmic analysis']
+    };
+    
+    const additionalExpertise = personaType ? expertiseMap[personaType] : ['general software development', 'best practices'];
+    return [...baseExpertise, ...additionalExpertise];
+  }
+
+  // Simplified patterns for persona modifications - more readable and maintainable
+  private static readonly MODIFICATION_PATTERNS = {
+    // Name change patterns - multiple simple patterns instead of one complex regex
+    // Using proper quote matching: must start and end with same quote type
+    name: [
+      /change\s+(?:the\s+)?name\s+to\s+"([^"]+)"/i,  // Double quotes only
+      /change\s+(?:the\s+)?name\s+to\s+'([^']+)'/i,  // Single quotes only
+      /update\s+(?:the\s+)?name\s+to\s+"([^"]+)"/i,
+      /update\s+(?:the\s+)?name\s+to\s+'([^']+)'/i,
+      /set\s+(?:the\s+)?name\s+(?:to\s+)?"([^"]+)"/i, // "set name" or "set name to" with double quotes
+      /set\s+(?:the\s+)?name\s+(?:to\s+)?'([^']+)'/i, // "set name" or "set name to" with single quotes
+      /name\s+to\s+"([^"]+)"/i, // Simple "name to X" with double quotes
+      /name\s+to\s+'([^']+)'/i, // Simple "name to X" with single quotes
+      /change\s+(?:the\s+)?name\s+from\s+"[^"]*"\s+to\s+"([^"]+)"/i, // "change name from X to Y" double quotes
+      /change\s+(?:the\s+)?name\s+from\s+'[^']*'\s+to\s+'([^']+)'/i, // "change name from X to Y" single quotes
+      /update\s+(?:the\s+)?name\s+from\s+"[^"]*"\s+to\s+"([^"]+)"/i,
+      /update\s+(?:the\s+)?name\s+from\s+'[^']*'\s+to\s+'([^']+)'/i,
+    ],
+    // Description change patterns - with proper quote matching
+    description: [
+      /change\s+(?:the\s+)?description\s+to\s+"([^"]+)"/i,
+      /change\s+(?:the\s+)?description\s+to\s+'([^']+)'/i,
+      /update\s+(?:the\s+)?description\s+to\s+"([^"]+)"/i,
+      /update\s+(?:the\s+)?description\s+to\s+'([^']+)'/i,
+      /set\s+(?:the\s+)?description\s+(?:to\s+)?"([^"]+)"/i,
+      /set\s+(?:the\s+)?description\s+(?:to\s+)?'([^']+)'/i,
+      /description\s+to\s+"([^"]+)"/i,
+      /description\s+to\s+'([^']+)'/i,
+      /change\s+(?:the\s+)?description\s+from\s+"[^"]*"\s+to\s+"([^"]+)"/i,
+      /change\s+(?:the\s+)?description\s+from\s+'[^']*'\s+to\s+'([^']+)'/i,
+    ]
+  };
+
+  // Helper method to extract values using multiple simple patterns
+  private static extractModificationValue(modifications: string, field: 'name' | 'description'): string | null {
+    // Validate input to prevent null/undefined crashes
+    if (!modifications || typeof modifications !== 'string') {
+      return null;
     }
     
-    if (description.includes('zen')) {
-      return [...baseExpertise, 'mindful coding practices', 'sustainable development', 'work-life balance'];
+    const patterns = PersonaUtils.MODIFICATION_PATTERNS[field];
+    
+    for (const pattern of patterns) {
+      const match = modifications.match(pattern);
+      if (match && match[1]) {
+        const value = match[1].trim();
+        // Reject empty or whitespace-only values
+        if (value.length === 0) {
+          return null;
+        }
+        return value;
+      }
     }
     
-    if (description.includes('startup')) {
-      return [...baseExpertise, 'MVP development', 'scalable solutions', 'business-focused development'];
+    return null;
+  }
+
+  private static addTechnologyExpertise(persona: Persona, modifications: string): Persona {
+    interface TechConfig {
+      skills: string[];
+      prompt: string;
+      keywords?: string[];
     }
     
-    if (description.includes('academic')) {
-      return [...baseExpertise, 'theoretical foundations', 'research methodologies', 'algorithmic analysis'];
-    }
+    const techExpertise: Record<string, TechConfig> = {
+      React: {
+        skills: ['React', 'JavaScript', 'frontend development'],
+        prompt: 'You have deep expertise in React and modern frontend development.'
+      },
+      Python: {
+        skills: ['Python', 'data science', 'backend development'],
+        prompt: 'You have extensive experience with Python and its ecosystem.'
+      },
+      security: {
+        skills: ['security', 'cybersecurity', 'secure coding'],
+        prompt: 'You prioritize security best practices in all recommendations.',
+        keywords: ['security', 'cybersecurity']
+      }
+    };
+
+    let updatedPersona = persona;
     
-    return [...baseExpertise, 'general software development', 'best practices'];
+    Object.entries(techExpertise).forEach(([tech, config]) => {
+      const keywords = config.keywords || [tech];
+      const shouldAdd = keywords.some((keyword: string) => modifications.includes(keyword));
+      
+      if (shouldAdd && !updatedPersona.expertise.includes(tech)) {
+        updatedPersona = {
+          ...updatedPersona,
+          expertise: [...updatedPersona.expertise, ...config.skills],
+          systemPrompt: `${updatedPersona.systemPrompt} ${config.prompt}`
+        };
+      }
+    });
+
+    return updatedPersona;
   }
 
   static applyPersonaModifications(persona: Persona, modifications: string): Persona {
+    // Validate inputs to prevent crashes
+    if (!persona) {
+      throw new Error('Persona cannot be null or undefined');
+    }
+    
+    // Handle null/undefined modifications gracefully
+    if (!modifications || typeof modifications !== 'string') {
+      Logger.debug('[DEBUG] Invalid modifications input, returning unchanged persona');
+      return persona;
+    }
+    
+    Logger.debug('[DEBUG] applyPersonaModifications called:', {
+      originalName: persona.name,
+      modifications: modifications
+    });
+    
     let updatedPersona = { 
       ...persona,
       expertise: [...persona.expertise], // Create a new array to avoid mutation
       traits: [...persona.traits] // Also copy traits array for consistency
     };
+
+    // Handle name changes using simplified pattern matching
+    const newName = PersonaUtils.extractModificationValue(modifications, 'name');
+    if (newName) {
+      Logger.debug(`[DEBUG] Applying name change: ${persona.name} -> ${newName}`);
+      updatedPersona = {
+        ...updatedPersona,
+        name: newName
+      };
+    } else {
+      Logger.debug(`[DEBUG] No name change match found for: ${modifications}`);
+    }
+
+    // Handle description changes using simplified pattern matching
+    const newDescription = PersonaUtils.extractModificationValue(modifications, 'description');
+    if (newDescription) {
+      Logger.debug(`[DEBUG] Applying description change: ${persona.description} -> ${newDescription}`);
+      updatedPersona = {
+        ...updatedPersona,
+        description: newDescription
+      };
+    }
 
     if (modifications.includes('more formal') || modifications.includes('formal')) {
       updatedPersona = {
@@ -248,36 +364,10 @@ export class PersonaUtils {
       };
     }
 
-    if (modifications.includes('React')) {
-      if (!updatedPersona.expertise.includes('React')) {
-        updatedPersona = {
-          ...updatedPersona,
-          expertise: [...updatedPersona.expertise, 'React', 'JavaScript', 'frontend development'],
-          systemPrompt: `${updatedPersona.systemPrompt} You have deep expertise in React and modern frontend development.`
-        };
-      }
-    }
+    // Handle technology expertise additions
+    updatedPersona = PersonaUtils.addTechnologyExpertise(updatedPersona, modifications);
 
-    if (modifications.includes('Python')) {
-      if (!updatedPersona.expertise.includes('Python')) {
-        updatedPersona = {
-          ...updatedPersona,
-          expertise: [...updatedPersona.expertise, 'Python', 'data science', 'backend development'],
-          systemPrompt: `${updatedPersona.systemPrompt} You have extensive experience with Python and its ecosystem.`
-        };
-      }
-    }
-
-    if (modifications.includes('security') || modifications.includes('cybersecurity')) {
-      if (!updatedPersona.expertise.includes('security')) {
-        updatedPersona = {
-          ...updatedPersona,
-          expertise: [...updatedPersona.expertise, 'security', 'cybersecurity', 'secure coding'],
-          systemPrompt: `${updatedPersona.systemPrompt} You prioritize security best practices in all recommendations.`
-        };
-      }
-    }
-
+    Logger.debug(`[DEBUG] Returning persona with name: ${updatedPersona.name}`);
     return updatedPersona;
   }
 }
