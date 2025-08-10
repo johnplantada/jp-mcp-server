@@ -31,6 +31,9 @@ import type {
 } from '../types/index.js';
 
 export class PersonaServer extends McpServerBase {
+  private static readonly TWENTY_FOUR_HOURS_MS = 24 * 60 * 60 * 1000;
+  private static readonly ONE_HOUR_MS = 60 * 60 * 1000;
+
   private storage!: PersonaStorage;
   private personas: Map<string, Persona> = new Map();
   private temporaryPersonas: Map<string, PersonaBlend> = new Map();
@@ -836,6 +839,10 @@ export class PersonaServer extends McpServerBase {
         personas.push(persona);
       }
       
+      // TODO: Move cleanup to scheduled job to avoid race conditions
+      // Currently cleanup runs during blend creation which could cause issues
+      // if multiple blends are created simultaneously
+      
       // Move expired temporary personas to expired map
       const now = new Date();
       for (const [id, blend] of this.temporaryPersonas) {
@@ -850,7 +857,7 @@ export class PersonaServer extends McpServerBase {
       }
 
       // Clean up expired personas after 24 hours
-      const dayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+      const dayAgo = new Date(Date.now() - PersonaServer.TWENTY_FOUR_HOURS_MS);
       for (const [id, blend] of this.expiredPersonas) {
         if (blend.expiredAt && blend.expiredAt < dayAgo) {
           this.expiredPersonas.delete(id);
@@ -860,7 +867,7 @@ export class PersonaServer extends McpServerBase {
       
       // Generate blend ID
       const blendId = `blend_${Date.now()}`;
-      const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1 hour TTL
+      const expiresAt = new Date(Date.now() + PersonaServer.ONE_HOUR_MS); // 1 hour TTL
       
       // Create blended system prompt
       let blendedPrompt = '';
@@ -1081,7 +1088,7 @@ export class PersonaServer extends McpServerBase {
         expiresAt: blend.expiresAt.toISOString(),
         expiredAt: blend.expiredAt?.toISOString(),
         timeUntilDeletion: blend.expiredAt ? 
-          Math.max(0, new Date(blend.expiredAt.getTime() + 24 * 60 * 60 * 1000).getTime() - Date.now()) : 0,
+          Math.max(0, new Date(blend.expiredAt.getTime() + PersonaServer.TWENTY_FOUR_HOURS_MS).getTime() - Date.now()) : 0,
       }));
 
       // Sort by most recently expired first
