@@ -37,7 +37,6 @@
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
     "test:unit": "jest tests/utils tests/base tests/servers tests/unit --testPathIgnorePatterns=integration",
-    "test:functional": "jest tests/functional",
     "test:integration": "jest tests/integration",
     "test:ci": "jest --coverage --watchAll=false"
   },

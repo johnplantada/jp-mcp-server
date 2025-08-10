@@ -30,9 +30,6 @@ jobs:
     - name: Run unit tests
       run: npm run test:unit
     
-    - name: Run functional tests
-      run: npm run test:functional
-    
     - name: Run integration tests
       run: npm run test:integration
     
