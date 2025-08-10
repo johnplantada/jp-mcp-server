@@ -31,13 +31,9 @@ export class SchemaBuilder {
       description: config.description,
     };
     
-    if (config.defaultValue !== undefined) {
-      // For strings, check if truthy to match original behavior
-      if (config.type === 'string' && !config.defaultValue) {
-        // Don't set default for empty strings (matching original stringProperty behavior)
-      } else {
-        property.default = config.defaultValue;
-      }
+    // Only set default when explicitly provided (allow empty string/false/0)
+    if (config.defaultValue !== undefined && config.defaultValue !== null) {
+      property.default = config.defaultValue;
     }
     
     if (config.items) property.items = config.items;
