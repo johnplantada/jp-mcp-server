@@ -58,6 +58,14 @@ export class SchemaBuilder {
     });
   }
 
+  static booleanProperty(description: string, defaultValue?: boolean): any {
+    return SchemaBuilder.createProperty({
+      type: 'boolean',
+      description,
+      defaultValue,
+    });
+  }
+
   static arrayProperty(description: string, itemType: string = 'string'): any {
     return SchemaBuilder.createProperty({
       type: 'array',

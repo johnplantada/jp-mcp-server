@@ -27,7 +27,16 @@ jobs:
     - name: Install dependencies
       run: npm ci
     
-    - name: Run tests with coverage
+    - name: Run unit tests
+      run: npm run test:unit
+    
+    - name: Run functional tests
+      run: npm run test:functional
+    
+    - name: Run integration tests
+      run: npm run test:integration
+    
+    - name: Run full test suite with coverage
       run: npm run test:ci
     
     - name: Display coverage report

@@ -5,7 +5,8 @@
   "type": "module",
   "main": "dist/servers/persona.js",
   "bin": {
-    "jp-mcp-server-persona": "dist/servers/persona.js"
+    "jp-mcp-server-persona": "dist/servers/persona.js",
+    "jp-mcp-server-prompt": "dist/servers/prompt.js"
   },
   "exports": {
     ".": {
@@ -26,14 +27,17 @@
     "server": "tsx src/cli/runner.ts",
     "server:list": "tsx src/cli/runner.ts list",
     "start:persona": "node dist/servers/persona.js",
+    "start:prompt": "node dist/servers/prompt.js",
     "dev:persona": "tsx src/servers/persona.ts",
+    "dev:prompt": "tsx src/servers/prompt.ts",
     "dev": "npm run dev:persona",
     "logs": "tail -f persona-server.log",
     "logs:clear": "rm -f persona-server.log",
     "test": "jest",
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
-    "test:unit": "jest tests/utils tests/base tests/servers --testPathIgnorePatterns=integration",
+    "test:unit": "jest tests/utils tests/base tests/servers tests/unit --testPathIgnorePatterns=integration",
+    "test:functional": "jest tests/functional",
     "test:integration": "jest tests/integration",
     "test:ci": "jest --coverage --watchAll=false"
   },
