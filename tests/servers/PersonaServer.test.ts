@@ -438,4 +438,281 @@ describe('PersonaServer', () => {
       expect(storage.activePersonaId).toBe('expert-developer');
     });
   });
+
+  describe('expired personas functionality', () => {
+    let mockBlend: any;
+
+    beforeEach(() => {
+      // Create a mock blended persona for testing
+      mockBlend = {
+        id: 'blend_12345',
+        sourcePersonaIds: ['test-dev', 'test-tutor'],
+        task: 'test blending task',
+        blendMode: 'merge' as const,
+        systemPrompt: 'You are a test blended persona.',
+        expiresAt: new Date(Date.now() - 1000), // Already expired
+      };
+    });
+
+    describe('expiredPersonas map', () => {
+      it('should initialize expiredPersonas map', () => {
+        expect((server as any).expiredPersonas).toBeInstanceOf(Map);
+        expect((server as any).expiredPersonas.size).toBe(0);
+      });
+
+      it('should store expired personas in expiredPersonas map', () => {
+        const expiredBlend = { ...mockBlend, expiredAt: new Date() };
+        (server as any).expiredPersonas.set('blend_12345', expiredBlend);
+        
+        expect((server as any).expiredPersonas.has('blend_12345')).toBe(true);
+        expect((server as any).expiredPersonas.get('blend_12345')).toEqual(expiredBlend);
+      });
+    });
+
+    describe('cleanup logic modifications', () => {
+      it('should move expired temporaryPersonas to expiredPersonas instead of deleting', async () => {
+        // Add a temporary persona that should expire
+        (server as any).temporaryPersonas.set('blend_12345', mockBlend);
+        (server as any).personas.set('blend_12345', {
+          id: 'blend_12345',
+          name: 'Test Blend',
+          description: 'Test blend persona',
+          systemPrompt: mockBlend.systemPrompt,
+          traits: ['test'],
+          communicationStyle: 'test',
+          expertise: ['testing'],
+        });
+
+        // Call blend handler to trigger cleanup
+        const args = {
+          persona_ids: ['test-dev', 'test-tutor'],
+          task: 'new blend task',
+        };
+        await (server as any).handleBlendPersonas(args);
+
+        // Check that expired persona was moved to expiredPersonas
+        expect((server as any).temporaryPersonas.has('blend_12345')).toBe(false);
+        expect((server as any).personas.has('blend_12345')).toBe(false);
+        expect((server as any).expiredPersonas.has('blend_12345')).toBe(true);
+        
+        const expiredBlend = (server as any).expiredPersonas.get('blend_12345');
+        expect(expiredBlend).toBeDefined();
+        expect(expiredBlend.expiredAt).toBeInstanceOf(Date);
+      });
+
+      it('should log when moving expired persona to expired collection', async () => {
+        (server as any).temporaryPersonas.set('blend_12345', mockBlend);
+        (server as any).personas.set('blend_12345', {
+          id: 'blend_12345',
+          name: 'Test Blend',
+          description: 'Test blend persona',
+          systemPrompt: mockBlend.systemPrompt,
+          traits: ['test'],
+          communicationStyle: 'test',
+          expertise: ['testing'],
+        });
+
+        const args = {
+          persona_ids: ['test-dev', 'test-tutor'],
+          task: 'new blend task',
+        };
+        await (server as any).handleBlendPersonas(args);
+
+        expect(loggerSpy).toHaveBeenCalledWith(
+          expect.stringContaining('Moved expired blended persona to expired collection: blend_12345')
+        );
+      });
+    });
+
+    describe('24-hour permanent cleanup', () => {
+      it('should permanently delete expired personas after 24 hours', async () => {
+        const dayAgo = new Date(Date.now() - 25 * 60 * 60 * 1000); // 25 hours ago
+        const expiredBlend = { ...mockBlend, expiredAt: dayAgo };
+        
+        (server as any).expiredPersonas.set('blend_12345', expiredBlend);
+        expect((server as any).expiredPersonas.has('blend_12345')).toBe(true);
+
+        // Trigger cleanup by calling blend handler
+        const args = {
+          persona_ids: ['test-dev', 'test-tutor'],
+          task: 'trigger cleanup',
+        };
+        await (server as any).handleBlendPersonas(args);
+
+        // Check that old expired persona was permanently deleted
+        expect((server as any).expiredPersonas.has('blend_12345')).toBe(false);
+        expect(loggerSpy).toHaveBeenCalledWith(
+          expect.stringContaining('Permanently cleaned up expired persona: blend_12345')
+        );
+      });
+
+      it('should not delete expired personas before 24 hours', async () => {
+        const recentExpiry = new Date(Date.now() - 12 * 60 * 60 * 1000); // 12 hours ago
+        const expiredBlend = { ...mockBlend, expiredAt: recentExpiry };
+        
+        (server as any).expiredPersonas.set('blend_12345', expiredBlend);
+
+        const args = {
+          persona_ids: ['test-dev', 'test-tutor'],
+          task: 'trigger cleanup',
+        };
+        await (server as any).handleBlendPersonas(args);
+
+        // Should still be in expired personas
+        expect((server as any).expiredPersonas.has('blend_12345')).toBe(true);
+      });
+    });
+
+    describe('handleListExpiredPersonas', () => {
+      it('should return empty message when no expired personas exist', async () => {
+        const response = await (server as any).handleListExpiredPersonas();
+        const text = TestUtils.getTextResponse(response);
+        
+        expect(text).toContain('No expired personas available for promotion');
+      });
+
+      it('should list expired personas with proper format', async () => {
+        const expiredBlend = { ...mockBlend, expiredAt: new Date() };
+        (server as any).expiredPersonas.set('blend_12345', expiredBlend);
+
+        const response = await (server as any).handleListExpiredPersonas();
+        const data = TestUtils.parseJsonResponse(response);
+        
+        expect(data.expiredPersonas).toHaveLength(1);
+        expect(data.expiredPersonas[0]).toMatchObject({
+          id: 'blend_12345',
+          name: 'Blended: test-dev + test-tutor',
+          description: 'merge blend for: test blending task',
+          sourcePersonaIds: ['test-dev', 'test-tutor'],
+          task: 'test blending task',
+          blendMode: 'merge',
+        });
+        expect(data.expiredPersonas[0].timeUntilDeletion).toBeGreaterThan(0);
+        expect(data.message).toContain('1 expired persona(s) available for promotion');
+      });
+
+      it('should sort expired personas by most recently expired first', async () => {
+        const oldExpired = { ...mockBlend, id: 'blend_old', expiredAt: new Date(Date.now() - 60000) };
+        const newExpired = { ...mockBlend, id: 'blend_new', expiredAt: new Date() };
+        
+        (server as any).expiredPersonas.set('blend_old', oldExpired);
+        (server as any).expiredPersonas.set('blend_new', newExpired);
+
+        const response = await (server as any).handleListExpiredPersonas();
+        const data = TestUtils.parseJsonResponse(response);
+        
+        expect(data.expiredPersonas).toHaveLength(2);
+        expect(data.expiredPersonas[0].id).toBe('blend_new');
+        expect(data.expiredPersonas[1].id).toBe('blend_old');
+      });
+    });
+
+    describe('handlePromoteExpiredPersona', () => {
+      it('should promote expired persona to permanent persona', async () => {
+        const expiredBlend = { ...mockBlend, expiredAt: new Date() };
+        (server as any).expiredPersonas.set('blend_12345', expiredBlend);
+        
+        // Add source personas to collect expertise from
+        (server as any).personas.set('test-dev', {
+          id: 'test-dev',
+          name: 'Test Developer',
+          description: 'A test developer',
+          systemPrompt: 'You are a test developer.',
+          traits: ['technical'],
+          communicationStyle: 'direct',
+          expertise: ['programming', 'testing'],
+        });
+        (server as any).personas.set('test-tutor', {
+          id: 'test-tutor',
+          name: 'Test Tutor',
+          description: 'A test tutor',
+          systemPrompt: 'You are a test tutor.',
+          traits: ['patient'],
+          communicationStyle: 'encouraging',
+          expertise: ['teaching', 'mentoring'],
+        });
+
+        const response = await (server as any).handlePromoteExpiredPersona({ persona_id: 'blend_12345' });
+        const text = TestUtils.getTextResponse(response);
+        
+        expect(text).toContain('Successfully promoted expired persona to permanent persona');
+        expect(text).toContain('Saved: test-dev + test-tutor');
+        
+        // Check that expired persona was removed
+        expect((server as any).expiredPersonas.has('blend_12345')).toBe(false);
+        
+        // Check that new permanent persona was created
+        const permanentPersonas = Array.from((server as any).personas.values()).filter((p: any) => 
+          p.name.includes('Saved: test-dev + test-tutor')
+        );
+        expect(permanentPersonas).toHaveLength(1);
+        
+        const promoted = permanentPersonas[0] as Persona;
+        expect(promoted.systemPrompt).toBe(mockBlend.systemPrompt);
+        expect(promoted.traits).toEqual(['collaborative', 'multi-faceted']);
+        expect(promoted.communicationStyle).toBe('adaptive');
+        expect(promoted.expertise).toEqual(expect.arrayContaining(['programming', 'testing', 'teaching', 'mentoring']));
+      });
+
+      it('should throw error when expired persona not found', async () => {
+        await expect(
+          (server as any).handlePromoteExpiredPersona({ persona_id: 'nonexistent' })
+        ).rejects.toThrow('Expired persona "nonexistent" not found');
+      });
+
+      it('should save promoted persona to storage', async () => {
+        const expiredBlend = { ...mockBlend, expiredAt: new Date() };
+        (server as any).expiredPersonas.set('blend_12345', expiredBlend);
+
+        await (server as any).handlePromoteExpiredPersona({ persona_id: 'blend_12345' });
+        
+        expect(MockPersonaUtils.savePersonaStorage).toHaveBeenCalled();
+        
+        // Check that storage.personas array was updated
+        const storage = (server as any).storage as PersonaStorage;
+        const promotedPersona = storage.personas.find((p: any) => 
+          p.name.includes('Saved: test-dev + test-tutor')
+        );
+        expect(promotedPersona).toBeDefined();
+      });
+    });
+
+    describe('notification system in handleListPersonas', () => {
+      it('should return normal persona list when no expired personas exist', async () => {
+        const response = await (server as any).handleListPersonas();
+        const data = TestUtils.parseJsonResponse(response);
+        
+        // Should be array format (not object with personas property)
+        expect(Array.isArray(data)).toBe(true);
+        expect(data).toHaveLength(2); // test-dev and test-tutor from mock storage
+      });
+
+      it('should include notification when expired personas exist', async () => {
+        const expiredBlend = { ...mockBlend, expiredAt: new Date() };
+        (server as any).expiredPersonas.set('blend_12345', expiredBlend);
+        (server as any).expiredPersonas.set('blend_67890', expiredBlend);
+
+        const response = await (server as any).handleListPersonas();
+        const data = TestUtils.parseJsonResponse(response);
+        
+        expect(data.personas).toHaveLength(2);
+        expect(data.notification).toBeDefined();
+        expect(data.notification.type).toBe('expired_personas_available');
+        expect(data.notification.message).toContain('⏰ 2 expired persona(s) are available for promotion');
+        expect(data.notification.expiredCount).toBe(2);
+        expect(data.notification.actions).toEqual(['list_expired_personas', 'promote_expired_persona']);
+      });
+
+      it('should update log message to include expired count', async () => {
+        const expiredBlend = { ...mockBlend, expiredAt: new Date() };
+        (server as any).expiredPersonas.set('blend_12345', expiredBlend);
+
+        await (server as any).handleListPersonas();
+        
+        expect(loggerSpy).toHaveBeenCalledWith(
+          expect.stringContaining('Listed 2 personas, active: test-dev, default: test-dev, 1 expired')
+        );
+      });
+    });
+  });
 });

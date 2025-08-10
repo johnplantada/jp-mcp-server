@@ -16,6 +16,10 @@ export const CONFIG = {
       name: 'persona-server',
       version: '0.1.0',
     },
+    PROMPT: {
+      name: 'prompt-server',
+      version: '0.1.0',
+    },
   },
 } as const;
 

@@ -74,7 +74,8 @@ Notes:
 
 ## 🎭 Persona Server Tools
 
-1. **list_personas** - List all available AI personas
+### Core Persona Management
+1. **list_personas** - List all available AI personas (includes expired persona notifications)
 2. **get_active_persona** - Get the currently active persona
 3. **switch_persona** - Switch to a different AI persona
 4. **get_persona_details** - Get detailed information about a specific persona
@@ -85,14 +86,41 @@ Notes:
 9. **update_persona** - Update an existing persona
 10. **set_default_persona** - Set the default persona for server startup
 
-## 📍 Persona Storage
+### Persona Blending & Management
+11. **blend_personas** - Create temporary blended personas combining multiple personas (1-hour TTL)
+12. **suggest_persona** - Get intelligent persona suggestions based on task context
+13. **get_persona_stats** - View usage statistics and analytics
+14. **reset_persona_stats** - Reset usage statistics
+15. **get_smart_recommendations** - Get AI-powered persona recommendations
 
+### Expired Persona Recovery
+16. **list_expired_personas** - List expired blended personas available for promotion (24-hour grace period)
+17. **promote_expired_persona** - Convert an expired blended persona into a permanent saved persona
+
+### Advanced Features
+18. **save_ai_generated_persona** - Save AI-generated personas to permanent storage
+19. **request_persona_generation** - Request AI generation of new personas
+
+## 📍 Persona Storage & Expiration
+
+### Permanent Storage
 Personas are stored in: `~/.mcp-personas.json`
 
 The file contains:
 - Array of all persona objects
 - Currently active persona ID
 - Default persona ID for startup
+
+### Temporary Persona Management
+- **Blended Personas**: Created with 1-hour expiration
+- **Expired Personas**: Moved to 24-hour grace period after expiration
+- **Recovery Window**: Users can promote expired personas to permanent storage
+- **Final Cleanup**: Expired personas are permanently deleted after 24 hours
+
+### Expiration Lifecycle
+1. **Active (1 hour)** → Blended persona is available for use
+2. **Expired (24 hour grace)** → Persona moved to expired collection, available for promotion
+3. **Permanent Deletion** → Expired persona is permanently removed from system
 
 ## 🔄 Adding New Servers
 
